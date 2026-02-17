@@ -1,0 +1,281 @@
+---
+title: "JABBA"
+subtitle: "Perfect Data Set"
+author: 
+  L.T. Kell
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Estimating $F_{MNY}$ for Atlantic Mackerel}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+# ICES Category 1 Stocks
+
+## FLStock objects
+
+Data are in the `icesdata` package
+
+```{r, icesdata, eval=FALSE}
+library(icesdata)
+
+data(icesdata)
+```
+
+```{r, knitr, eval=TRUE, echo=FALSE, warning=FALSE, cache=FALSE}
+library(knitr)
+
+opts_chunk$set(comment   =NA, 
+               warning   =FALSE, 
+               message   =FALSE, 
+               error     =FALSE, 
+               echo      =FALSE, 
+               cache     =TRUE, 
+               cache.path="../cache/01/",
+               fig.path  ="../figs/01-",
+               fig.width =8,
+               fig.height=6,
+               dev       ="png")
+
+iFig=0
+iTab=0
+```
+
+```{r, eval=FALSE}
+setwd("C:/flrpapers/jabba_eval/Rmd")
+```
+
+```{r, pkgs}
+library(FLCore)
+library(FLBRP)
+library(FLife)
+library(FLCandy)
+require(ggplotFL)
+
+require(ggplot2)
+
+library(plyr)
+library(dplyr)
+
+theme_set(theme_bw(16))
+```
+
+
+```{r, data}
+load("../data/inputs/icesdata.RData")
+load("../data/inputs/spp.RData")
+load("../data/inputs/info.RData")
+
+for (.id in subset(info,Model=="SMS")$.id)
+  icesdata[[.id]]=qapply(icesdata[[.id]], function(x) 
+     {
+     dimnames(x)[3:5]=dimnames(stock.n(icesdata[[.id]]))[3:5]
+     
+     dimnames(x)[[3]]="unique"
+     dimnames(x)[[4]]="all"
+     dimnames(x)[[5]]="unique"
+     x})
+
+for(.id in names(icesdata)){
+  small=min(catch.n(icesdata[[.id]]),na.rm=TRUE)*1e-6
+  catch.n(   icesdata[[.id]])[is.na(catch.n(   icesdata[[.id]]))]=small
+  landings.n(icesdata[[.id]])[is.na(landings.n(icesdata[[.id]]))]=small
+  discards.n(icesdata[[.id]])[is.na(catch.n(   icesdata[[.id]]))]=0.0}
+
+save(icesdata,file="../data/inputs/icesdata.RData")
+
+ctc1903=read.csv("../data/inputs/NorthSea_stocks.csv")[,1:14] 
+ctc1903$Discards[is.na(ctc1903$Discards)]=0
+
+names(ctc1903)[c(3:4,6)]=c(".id","year","catch")
+ctc1903=ctc1903[,c(3:4,6)]
+
+save(ctc1903,file="../data/ctc1903.RData")
+
+indices       =read.csv("../data/inputs/Stock_indices.csv")[,1:5]
+names(indices)=c(".id","survey","year","data","ages")
+indices$data  =an(indices$data)
+
+save(indices,file="../data/indices.RData")
+```
+
+
+### Extract time series from Cat 1 assessments
+
+```{r, tseries}
+ts=tseries(icesdata)
+```
+
+```{r, catch-ices, fig.height=10, fig.width=8}
+ggplot(ddply(ts,.(.id), transform, catch=stdz(catch)))+
+  geom_line(aes(year,catch),col="blue")+
+  geom_text(aes(x=1950, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black")+
+  facet_wrap(~.id,scale="free_y",ncol=4)+  
+  labs(title="Catch: Cat 1 stocks",   
+       x    ="Year",
+       y    ="") +
+ # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** Time series of standardised catches from ICES Cat 1 stock assessments.
+
+
+```{r, ssb-ices, fig.height=10, fig.width=8}
+ggplot(ddply(ts,.(.id), transform, ssb=stdz(ssb)))+
+  geom_line(aes(year,ssb),col="blue")+
+  facet_wrap(~.id,scale="free_y",ncol=4)+
+  geom_text(aes(x=1950, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black")+
+  labs(title="SSB: Cat 1 stocks", 
+       x    ="Year",
+       y    ="")+
+ # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** Standarised SSB from ICES Cat 1 stock assessments.
+
+
+```{r, catch-1903, fig.height=10, fig.width=8}
+ggplot(ddply(ctc1903,.(.id), transform, catch=stdz(catch)))+ 
+  geom_line(aes(year,catch),col="blue")+ 
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  facet_wrap(~.id,scale="free_y",ncol=4)+
+  labs(title="Catch",
+       x    ="Year",
+       y    ="")+ 
+  # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** Historical catches.
+
+```{r, catch-summary, fig.height=10, fig.width=8}
+ctc=transmute(ts,.id=.id,year=year,data=catch)
+ctc2=rbind(cbind(What="ICES",ctc),
+           cbind(What="1903",mutate(ctc1903,data=catch)[,-3]))
+ 
+ggplot(ddply(ctc2,.(.id), transform, catch=stdz(data)))+
+  geom_line(aes(year,catch,col=What))+
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  scale_color_manual(values=c("cyan","blue"))+
+  facet_wrap(~.id,scale="free_y",ncol=4)+
+  labs(title="Catch",
+       x    ="Year",
+       y    ="")+
+   # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** ICES Cat 1 assessments and historical catches.
+
+```{r, catch-2, fig.height=10, fig.width=8}
+maxyear=ddply(ctc,.(.id), with, data.frame(maxyear=max(year)))
+ctc2   =merge(ctc2,maxyear,by=".id",all.x=TRUE)
+ctc2   =subset(ctc2,is.na(maxyear)|year<=maxyear)
+
+ctc2$What=factor(ctc2$What,levels=c("ICES","1903"))
+ctc3=ctc2[do.call("order",ctc2[,c(".id","year","What")]),]
+ctc3=ctc3[!duplicated(ctc3[,c(".id","year")]),]
+   
+ggplot(ddply(ctc3,.(.id), transform, catch=stdz(data)))+
+  geom_line(aes(year,catch,col=What))+
+  geom_text( aes(x=-Inf, y=Inf, label=.id),
+            hjust    =0, vjust = 1, 
+            size     = 3.5, 
+            fontface = "bold", col="grey50") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  scale_color_manual(values=c("blue","cyan"))+
+  facet_wrap(~.id,scale="free_y",ncol=4)+
+  theme_minimal(10)+
+  theme(legend.position="none", 
+        strip.text   = element_blank(),
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title="Catch",
+       x    ="Year",
+       y    ="")+
+  # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+
+```
+
+**Figure `r iFig=iFig+1; iFig`** Updated catch time series.
+
+
+### Stocks with missing catch-at-age data
+
+```{r, catch-3}
+subset(ldply(icesdata, function(x) any(is.na(catch.n(x)))),V1)[,1]
+```
+
+

@@ -1,0 +1,486 @@
+---
+title: "Final Figs"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+    fig_caption: true
+    keep_tex: false
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.width = 8,
+  fig.height= 6,
+  fig.align = "center",
+  cache     = !TRUE)
+
+# Libraries
+library(FLCore)
+
+library(JABBA)
+library(FLRebuild)
+
+library(icesdata)
+
+library(ggplot2)
+library(GGally)
+
+library(plyr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(tidyr)
+library(purrr)
+library(reshape) 
+library(reshape2) 
+
+library(patchwork)
+
+# Counter for figures and tables
+iFig <- 0
+iTab <- 0
+```
+
+```{r, eval=FALSE}
+source("C:/active/flr/icesdata/R/generic.R")
+source("C:/active/flr/FLRebuild/R/jabba-wrapper.R")
+source("C:/active/flr/icesdata/R/tseries.R")
+```
+
+```{r}
+theme_enhanced=theme_minimal(base_size=12)+
+  theme(
+    legend.position="bottom",
+    legend.title=element_text(face="bold"),
+    panel.grid.major.x=element_line(color="gray90", linewidth=0.2),
+    panel.grid.minor=element_blank(),
+    strip.text=element_text(face="bold", size=10, color="gray30"),
+    plot.title=element_text(face="bold", size=14, margin=margin(b=10)),
+    plot.subtitle=element_text(size=10, color="gray40", margin=margin(b=15)),
+    axis.title.x=element_text(size=12, margin=margin(t=10)),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    panel.spacing=unit(0, "lines"),
+    plot.margin=margin(0,0,0,0))
+```
+
+```{r}
+library(icesdata)
+data("icesdata")
+ts=tseries(icesdata)
+
+ices=merge(ts,eqsim(icesdata))
+```
+
+```{r}
+load("C:/active/flrpapers/hist/jabba-hist/data/fits/priorICES.RData")
+```
+
+
+```{r}
+ggplot(transform(priorICES,
+              .id=factor(.id,levels=unlist(priorICES[order(priorICES$psi),".id"]))))+
+  geom_point(aes(.id,psi))+
+  geom_hline(aes(yintercept=1))+
+  theme(axis.text.x=element_text(angle=45))
+```
+
+
+```{r, hist-catches}
+ctc1903=read.csv("../data/inputs/NorthSea_stocks.csv")[,1:14] 
+ctc1903$Discards[is.na(ctc1903$Discards)]=0
+
+names(ctc1903)[c(3:4,6)]=c(".id","year","catch")
+ctc1903=ctc1903[,c(3:4,6)]
+
+ctc=rbind(cbind(What="ICES",transmute(ts,.id=.id,year=year,data=catch)),
+          cbind(What="1903",mutate(ctc1903,data=catch)[,-3]))
+
+chk=merge(ddply(ts,.(.id), with, data.frame(ICES=min(year))),
+          ddply(ctc1903,.(.id), with, data.frame(Hist=min(year)),by="year"),by=".id")
+
+
+ctc=subset(ctc,.id%in%subset(chk,Hist<ICES)$.id)
+ctc=subset(ctc,!.id%in%c("aru.27.5b6a", "bss.27.4bc7ad-h", "meg.27.7b-k8abd", "mon.27.8c9a", "ple.27.21-23", "spr.27.3a4"))
+
+p1=ggplot(ddply(ctc,.(.id), transform, catch=stdz(data)))+
+  geom_line(aes(year,catch,col=What))+
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  scale_color_manual(values=c("cyan","blue"))+
+  facet_wrap(~.id,scale="free_y",ncol=5)+
+  labs(x    ="Year",
+       y    ="")+
+  theme_enhanced+
+  theme(
+    strip.text = element_blank(),        
+    strip.background = element_blank(),
+    panel.spacing = unit(0, "lines"),
+    plot.margin  = margin(0, 0, 0, 0))
+p1
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig1.png", 
+       plot    =p1, 
+       width   =15, 
+       height  =12, 
+       dpi     =300)
+```
+
+
+**Figure 1.** Reconstructed time series of ICES historical catches by stock. The blue line represents catches used in the official stock assessment while the magenta line is the historical catches as derived from the ICES historical catch database. Catches are standardised to have a mean of 0 and a standard deviation of 1 and the y-axis labels are removed for an easier presentation of the database. 
+
+```{r, trj-fig5b}
+load("C:/active/flrpapers/hist/jabba-hist/data/fits/trj.RData")
+ices=subset(ices,.id%in%trjcMed$.id) 
+
+p5a=ggplot(subset(trjcMed,Scenario=="ICES"))+
+  geom_line(aes(year,stock,col=Scenario))+
+  geom_line(aes(year,ssb/bmsy),col="red",linetype=1,data=ices)+
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  scale_color_manual(values=c("cyan","blue"))+
+  facet_wrap(~.id,scale="free_y",ncol=5)+
+  labs(x    ="Year",
+       y    ="")+
+  theme_enhanced+
+  theme(
+    strip.text = element_blank(),        
+    strip.background = element_blank(),
+    panel.spacing = unit(0, "lines"),
+    plot.margin  = margin(0, 0, 0, 0))
+p5a
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5a.png", 
+       plot    =p5a, 
+       width   =15, 
+       height  =12, 
+       dpi     =300)
+
+p5b=ggplot(trjcMed)+
+  geom_line(aes(year,stock,col=Scenario))+
+  geom_line(aes(year,ssb/bmsy),col="red",linetype="dotted",data=ices)+
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black") +
+  geom_vline(aes(xintercept=1939),colour="red")+
+  scale_color_manual(values=c("cyan","blue"))+
+  facet_wrap(~.id,scale="free_y",ncol=5)+
+  labs(x    ="Year",
+       y    ="")+
+  theme_enhanced+
+  theme(
+    strip.text = element_blank(),        
+    strip.background = element_blank(),
+    panel.spacing = unit(0, "lines"),
+    plot.margin  = margin(0, 0, 0, 0))
+p5b
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5b.png", 
+       plot    =p5b, 
+       width   =15, 
+       height  =12, 
+       dpi     =300)
+```
+
+
+**Figure 2.** 
+
+## Post processing of JABBA 
+
+```{r}
+load("../data/fits/post.RData")
+```
+
+
+```{r, fig2, fig.height=12, fig.width=10}
+load("../data/fits/post.RData")
+
+p2=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903",    "ICES"), 
+                                                  labels=c("Historical","ICES"))))+  
+  geom_density(aes(BmsyK, fill =Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(BmsyK, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=0.4, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+ 
+  scale_x_continuous(limits=c(0, 0.9), breaks=c(0, 0.5))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       x=expression(r),
+       y="Density")+
+  theme_enhanced 
+p2
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig2.png", 
+       plot    =p2, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+**Figure 2.** Density plot of the posteriors of the shape parameter of the production function (BMSY/SSB0) estimated for each stock with “ICES catches JABBA” and “Historical catches JABBA” models. 
+
+```{r, fig3, fig.height=12, fig.width=10}
+p3=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903",   "ICES"), 
+                                                  labels=c("Historical Catches","ICES Catches"))))+  
+  geom_density(aes(r, fill =Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(r, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=0.4, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+ 
+  scale_x_continuous(limits=c(0, 0.9), breaks=c(0, 0.5))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       x=expression(r),
+       y="Density")+
+  theme_enhanced 
+p3
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig3.png", 
+       plot    =p3, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+**Figure 3.** Density plot of the posteriors of the population growth parameter (r) estimated for each stock with “ICES catches JABBA” and “Historical catches JABBA” models. The black vertical line indicates the r prior value used for the analysis.
+
+```{r, fig4,  fig.height=12, fig.width=10}
+p4=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903","ICES"), 
+                                                  labels=c("Historical Catches","ICES Catches"))))+  
+  geom_density(aes(r, fill =Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(r, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=0.4, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+ 
+  scale_x_continuous(limits=c(0, 0.9), breaks=c(0, 0.5))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       x=expression(r),
+       y="Density")+
+  theme_enhanced 
+p4
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig4.png", 
+       plot    =p4, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+**Figure 4.** Density plot of the posteriors of the ratio between $B_{current}$ and $B_{MSY}$ estimated for each stock with “ICES catches JABBA” and “Historical catches JABBA” models. The black vertical line indicates BMSY for each stock.
+
+```{r, fig5,  fig.height=12, fig.width=10}
+load("C:/active/flrpapers/hist/jabba-hist/data/fits/trj.RData")
+
+p5=ggplot(trjc)+
+  geom_line(aes(year, stock, color = Scenario), 
+            linewidth = 0.8, alpha = 0.8) +
+  geom_hline(aes(yintercept=1),linetype="dotted")+
+  geom_text(aes(x = min(year), y = max(stock), label = .id),
+            hjust    = 0, vjust = 1, 
+            size     = 3.5, 
+            fontface = "bold", col="grey50") +
+  facet_wrap(~.id, scales = "free_y", ncol = 5) +
+  labs(title   ="Biomass Trajectories",
+       subtitle="ICES",
+       x       ="Year",
+       y       ="Relative Biomass") +
+  theme_enhanced+
+  theme(
+    strip.text = element_blank(),        
+    strip.background = element_blank(),
+    panel.spacing = unit(0, "lines"),
+    plot.margin  = margin(0, 0, 0, 0))
+p5
+
+# Save with appropriate dimensions
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5.png", 
+       plot    =p5, 
+       width   =15, 
+       height  =12, 
+       dpi     =300)
+```
+
+**Figure 5.** Trend in stock status (B/BMSY) for each stock estimated by “ICES catches JABBA” and “Historical catches JABBA” models. The horizontal dash line indicates BMSY.
+
+```{r, fig6a, fig.height=12, fig.width=10}
+p6a=ggplot(transform(post, Scenario=factor(Scenario,levels=c("1903",   "ICES"),
+                                                   labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0, 1, 1, 0, 0), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("springgreen", 0.15))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(1, Inf, Inf, 1, 1), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("tomato", 0.15))+
+  geom_density(aes(harvest, fill=Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(harvest, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=1, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  coord_cartesian(xlim=c(0, 2.0))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       fill    ="Scenario",
+       x=expression(F/F[MSY]),
+       y="Density")+
+  theme_enhanced 
+p6a
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6a.png", 
+       plot    =p6a, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+**Figure 6.** Density plot of fishing mortality (median $F/F_{MSY}$) estimated by “ICES catches JABBA” and “Historical catches JABBA” models. 
+
+
+```{r, fig6b, fig.height=12, fig.width=10}
+p6b=ggplot(transform(post, Scenario=factor(Scenario,levels=c("1903",   "ICES"),
+                                                   labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0, 1, 1, 0, 0), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("springgreen", 0.15))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(1, Inf, Inf, 1, 1), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("tomato", 0.15))+
+  geom_density(aes(stock, fill=Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(stock, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=1, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  coord_cartesian(xlim=c(0, 2.0))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       fill    ="Scenario",
+       x=expression(B/B[MSY]),
+       y="Density")+
+  theme_enhanced 
+p6b
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6b.png", 
+       plot    =p6b, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+
+**Figure 6.** Density plot of the aggregated stock status (median $B/B_{MSY}$) estimated by “ICES catches JABBA” and “Historical catches JABBA” models. 
+
+```{r}
+p6=(p6a+facet_null()) / 
+   (p6b+facet_null())
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6.png", 
+       plot    =p6, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+```
+
+
+**Figure 6.** Density plot of the aggregated stock status (median $B/B_{MSY}$) (a) and fishing mortality (median $F/F_{MSY}$) (b) estimated by “ICES catches JABBA” and “Historical catches JABBA” models. 
+
+
+Figure 7 illustrates the estimates across stocks of r, shape (i.e., BMSY/K), $K$, the spawning biomass estimated at the start of the current stock assessment model ($B_{initial}$) and the spawning biomass estimated at the terminal year of the current stock assessment model ($B_{current}$) from both model scenarios. The results confirm that the largest difference when including historical catch data is observed for the shape of the production function and the spawning biomass estimated at the start of the current stock assessment model while differences are smaller for r, SSB0 and Bcurrent.
+
+```{r, fig7,  fig.height=10, fig.width=10}
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/results_kb.RData")
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/results_post.RData")
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/results_prior.RData")
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/results_trjc.RData")
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/results_psi.RData") 
+
+min1903=ddply(ctc1903,.(.id), with, data.frame(minyear=min(year)))
+minICES=ldply(icesdata, function(x) data.frame(minyear=dims(x)[["minyear"]]))
+minyear=merge(min1903,minICES,by=".id")
+stks   =subset(minyear,minyear.x<minyear.y)$.id
+minyear=transmute(minyear,.id=.id,minyear=minyear.y)
+minyear=subset(minyear,!.id%in%c("aru.27.5b6a", "bss.27.4bc7ad-h", "meg.27.7b-k8abd", 
+                                 "mon.27.8c9a", "ple.27.21-23", "spr.27.3a4"))
+icesdata=icesdata[(stks%in%minyear$.id)]
+stks    =names(icesdata)
+
+kb2=ddply(kb,.(.id,Scenario), with, data.frame(stock  =median(stock),                   
+                                               harvest=median(harvest)))
+kb3=cast(.id~Scenario,value="stock",data=kb2)
+
+postMed=merge(subset(post,iter%in%501:1000)[,c("r","bk","K","Bmsy","stock","harvest","Scenario",".id")],
+          subset(merge(psi,minyear), year==minyear),by=c(".id","Scenario"))
+postMed=subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903"))
+postMed=ddply(post,.(.id,Scenario), with, data.frame(r      =median(r,              na.rm=TRUE),
+                                                     K      =log(median(K,          na.rm=TRUE)),
+                                                     bk     =median(bk,             na.rm=TRUE),
+                                                     psi    =median(psi,            na.rm=TRUE),
+                                                     Bmsy   =log(median(Bmsy,       na.rm=TRUE)),
+                                                     BmsyK  =median(BmsyK,          na.rm=TRUE),
+                                                     current=log(median(stock,      na.rm=TRUE)),
+                                                     harvest=median(harvest,        na.rm=TRUE))) 
+bInitial=transmute(subset(merge(trjc,minICES,by=".id"),year==minyear),.id=.id,Scenario=Scenario,BInitial=log(stock))
+postMed=merge(postMed,bInitial)
+
+
+# Create enhanced pairs plot
+p7=ggpairs(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")),
+                  Scenario=factor(Scenario,labels=c("ICES","1903")))[,
+                 c("r","bk","Bmsy","current","BInitial","Scenario")],
+  columnLabels=c("r","B[MSY]/K","log(B[MSY])","B[current]/B[MSY]",
+                     "log(B[initial])", "Scenario"),
+  labeller=label_parsed,
+  lower=list(
+    continuous=wrap("points", 
+                     alpha=0.4,    # Increased transparency
+                     size=1.0,     # Smaller points for clarity
+                     shape=16)     # Solid circles
+  ),
+  diag=list(
+    continuous=wrap("densityDiag", 
+                     alpha=0.4,    # More solid density plots
+                     color="black") # Black outline
+  ),
+  upper=list(continuous="blank"),
+  combo=wrap("box_no_facet", 
+               outlier.shape=NA,
+               alpha=0.6),
+  mapping=ggplot2::aes(color=Scenario, fill=Scenario))
+p7+theme(
+     strip.background=element_rect(fill="grey95"),
+     strip.text=element_text(size=8),
+     axis.text.y=element_text(size=7),
+     axis.text.x=element_text(size=7,angle=45),
+     legend.position="bottom",
+     legend.text=element_text(size=8),
+     panel.grid.minor=element_blank())
+
+ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig7.png", 
+       plot    =p7, 
+       width   =10, 
+       height  =12, 
+       dpi     =300)
+
+```
+
+**Figure 7.** Density of the aggregated posterior distribution for the population growth parameter (r), shape (i.e., BMSY/SSB0), the spawning biomass estimated at the start of the ICES times series (Binitial) and the spawning biomass estimated at the end of the ICES times series (Bcurrent; in log scale), the stock carrying capacity (SSB0; in log scale) for both scenarios, “ICES catches JABBA” and the “Historical catches JABBA” models.
+
+```{r}
+source("C:/active/flr/diags/R/diags-jabba.R")
+load("C:/active/flrpapers/hist/jabba-hist/data/results/histICES.RData")
+
+jbICES=llply(histICES, function(x) x[["ICES"]]$fit)
+jb1903=llply(histICES, function(x) x[["1903"]]$fit)
+ 
+dgICES=runAll(jbICES)
+dg1903=runAll(jb1903)
+```

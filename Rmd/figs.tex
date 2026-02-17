@@ -1,0 +1,169 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Final Figs},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Final Figs}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\subsection{Post processing of JABBA}\label{post-processing-of-jabba}
+
+\subsection{Figures}\label{figures}
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig1-1} \end{center}
+
+\textbf{Figure 1.} Reconstructed time series of ICES historical catches
+by stock. The blue line represents catches used in the official stock
+assessment while the magenta line is the historical catches as derived
+from the ICES historical catch database. Catches are standardised to
+have a mean of 0 and a standard deviation of 1 and the y-axis labels are
+removed for an easier presentation of the database.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig2-1} \end{center}
+
+\textbf{Figure 2.} Density plot of the posteriors of the shape parameter
+of the production function (BMSY/SSB0) estimated for each stock with
+``ICES catches JABBA'' and ``Historical catches JABBA'' models.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig3-1} \end{center}
+
+\textbf{Figure 3.} Density plot of the posteriors of the population
+growth parameter (r) estimated for each stock with ``ICES catches
+JABBA'' and ``Historical catches JABBA'' models. The black vertical line
+indicates the r prior value used for the analysis.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig4-1} \end{center}
+
+\textbf{Figure 4.} Density plot of the posteriors of the ratio between
+\(B_{current}\) and \(B_{MSY}\) estimated for each stock with ``ICES
+catches JABBA'' and ``Historical catches JABBA'' models. The black
+vertical line indicates BMSY for each stock.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig5-1} \end{center}
+
+\textbf{Figure 5.} Trend in stock status (B/BMSY) for each stock
+estimated by ``ICES catches JABBA'' and ``Historical catches JABBA''
+models. The horizontal dash line indicates BMSY.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig6a-1} \end{center}
+
+\url{http://127.0.0.1:37757/graphics/998e2f96-10ef-44f8-b4b0-0b654c030dca.png}
+
+\textbf{Figure 6.} Density plot of fishing mortality (median
+\(F/F_{MSY}\)) estimated by ``ICES catches JABBA'' and ``Historical
+catches JABBA'' models.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig6b-1} \end{center}
+
+\textbf{Figure 6.} Density plot of the aggregated stock status (median
+\(B/B_{MSY}\)) estimated by ``ICES catches JABBA'' and ``Historical
+catches JABBA'' models.
+
+\textbf{Figure 6.} Density plot of the aggregated stock status (median
+\(B/B_{MSY}\)) (a) and fishing mortality (median \(F/F_{MSY}\)) (b)
+estimated by ``ICES catches JABBA'' and ``Historical catches JABBA''
+models.
+
+Figure 7 illustrates the estimates across stocks of r, shape (i.e.,
+BMSY/K), \(K\), the spawning biomass estimated at the start of the
+current stock assessment model (\(B_{initial}\)) and the spawning
+biomass estimated at the terminal year of the current stock assessment
+model (\(B_{current}\)) from both model scenarios. The results confirm
+that the largest difference when including historical catch data is
+observed for the shape of the production function and the spawning
+biomass estimated at the start of the current stock assessment model
+while differences are smaller for r, SSB0 and Bcurrent.
+
+\begin{center}\includegraphics{figs_files/figure-latex/fig7-1} \end{center}
+
+\textbf{Figure 7.} Density of the aggregated posterior distribution for
+the population growth parameter (r), shape (i.e., BMSY/SSB0), the
+spawning biomass estimated at the start of the ICES times series
+(Binitial) and the spawning biomass estimated at the end of the ICES
+times series (Bcurrent; in log scale), the stock carrying capacity
+(SSB0; in log scale) for both scenarios, ``ICES catches JABBA'' and the
+``Historical catches JABBA'' models.
+
+\end{document}

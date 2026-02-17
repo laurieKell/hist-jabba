@@ -1,0 +1,792 @@
+---
+title: "Historical JABBA runs"
+subtitle: "Results"
+author: 
+  L.T. Kell
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Estimating $F_{MNY}$ for Atlantic Mackerel}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+tseries
+kobe
+
+Models of tomatouced Complexity (MRCs) based on biomass dynamics offer an approach to understanding historical stock dynamics in data-limited situations. These models can use catch time series when detailed age-structutomato information is unavailable, thereby enabling broad-scale analyses across multiple fish stocks. They can also incorporate prior knowledge, which is particularly valuable when working with historical data series of varying reliability. They therefore serve as effective tools for meta-analysis. 
+
+
+**Data Requirements**
+MRCs like JABBA can effectively utilise catch time series data when detailed age-structutomato information is unavailable. These models are particularly valuable when working with data-limited situations, making them suitable for broad-scale analyses across multiple stocks.
+
+**Uncertainty Handling**
+The Bayesian implementation in modern MRCs allows for better quantification of uncertainty and incorporation of prior knowledge. This is especially useful when dealing with historical data series where confidence in the data may vary over time.
+
+**Biological Complexity**
+MRCs may oversimplify the biological processes compatomato to age-structutomato models. 
+
+
+
+1. Perfect index to run JABBA for all stocks
+2. Add HIST data and rerun JABBA
+3. Bfrac/initisl.ssb Priors: 
+        HIST data 0.9 with sd=0.2/0.3 
+        ICES data value from the FLR database with sd=0.2/0.3
+4. Select stocks for which ratio between stock from perfect (stock.mu) and stock from ICES (stock) is between 0.7 and 1.3
+5. Run sensitivity for priors (relax the priors) and for selection criteria (make it more stringent, 0.8-1.2)
+
+
+```{r, knitr, eval=TRUE, echo=FALSE, warning=FALSE, cache=FALSE}
+library(knitr)
+
+opts_chunk$set(comment   =NA, 
+               warning   =FALSE, 
+               message   =FALSE, 
+               error     =FALSE, 
+               echo      =FALSE, 
+               cache     =TRUE, 
+               cache.path="../cache/04/",
+               fig.path  ="../figs/04-",
+               fig.width =10,
+               fig.height=12,
+               dev       ="png")
+
+iFig=0
+iTab=0
+```
+
+
+```{r, eval=FALSE}
+setwd("C:/active/flrpapers/hist/resubmit/Rmd")
+```
+
+
+```{r, pkgs}
+library(ggplot2)
+library(ggpubr)
+library(GGally)
+library(ggpubr)
+
+library(ggplot2)
+library(ggExtra)
+library(gridExtra)
+library(ggside)
+
+library(purrr)
+
+library(FLCore)
+library(FLBRP)
+library(FLCandy)
+require(ggplotFL)
+library(scales)
+
+library(purrr)
+library(plyr)
+library(dplyr)
+library(reshape)
+
+library(latex2exp)
+
+library(data.table)
+
+library(stringr)
+
+library(JABBA)
+
+library(foreach)
+library(doParallel)
+
+library(rpart)
+library(rpart.plot)
+
+theme_my=theme_minimal(base_size=12)+
+  theme(
+    legend.position="bottom",
+    legend.title=element_text(face="bold"),
+    panel.grid.major.x=element_line(color="gray90", linewidth=0.2),
+    panel.grid.minor=element_blank(),
+    strip.text=element_text(face="bold", size=10, color="gray30"),
+    plot.title=element_text(face="bold", size=14, margin=margin(b=10)),
+    plot.subtitle=element_text(size=10, color="gray40", margin=margin(b=15)),
+    axis.title.x=element_text(size=12, margin=margin(t=10)),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    panel.spacing=unit(0, "lines"),
+    plot.margin=margin(0,0,0,0))
+
+theme_set(theme_minimal(base_size=12))
+```
+
+```{r}
+load("../data/bhs.RData")
+load("../data/rks.RData")
+
+prB=ldply(bhs,function(x) tryIt(model.frame(pellatParams(x))))
+llB=ldply(bhs,function(x) tryIt(data.frame(LL=attributes(x)$logLik[1])))
+B  =merge(prB[,1:2],llB,by=".id")
+
+prR=ldply(rks,function(x) tryIt(model.frame(pellatParams(x))))
+llR=ldply(rks,function(x) tryIt(data.frame(LL=attributes(x)$logLik[1])))
+R  =merge(prR[,1:2],llR,by=".id")
+
+r=merge(B,R,by=".id")
+
+names(r)[-1]=c("r.BH","LL.BH","r.R","LL.R")
+r=r[,c(1,2,4,3,5)]
+
+ggplot(aes(r.BH,r.R),data=r)+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)+
+  geom_abline(aes(slope=1,intercept=0),col="red",linetype=2)
+
+save(r,file="C:/flrpapers/jabba_eval/data/results/rPrior.RData")
+```
+
+
+```{r, data}
+load("../data/fits/hist/results_kb.RData")
+load("../data/fits/hist/results_post.RData")
+load("../data/fits/hist/results_prior.RData")
+load("../data/fits/hist/results_trjc.RData")
+load("../data/fits/hist/results_psi.RData") 
+
+min1903=ddply(ctc1903,.(.id), with, data.frame(minyear=min(year)))
+minICES=ldply(icesdata, function(x) data.frame(minyear=dims(x)[["minyear"]]))
+minyear=merge(min1903,minICES,by=".id")
+stks   =subset(minyear,minyear.x<minyear.y)$.id
+minyear=transmute(minyear,.id=.id,minyear=minyear.y)
+minyear=subset(minyear,!.id%in%c("aru.27.5b6a", "bss.27.4bc7ad-h", "meg.27.7b-k8abd", 
+                                 "mon.27.8c9a", "ple.27.21-23", "spr.27.3a4"))
+icesdata=icesdata[(stks%in%minyear$.id)]
+stks    =names(icesdata)
+
+kb2=ddply(kb,.(.id,Scenario), with, data.frame(stock  =median(stock),                   
+                                               harvest=median(harvest)))
+kb3=cast(.id~Scenario,value="stock",data=kb2)
+
+postMed=merge(subset(post,iter%in%501:1000)[,c("r","bk","K","Bmsy","stock","harvest","Scenario",".id")],
+          subset(merge(psi,minyear), year==minyear),by=c(".id","Scenario"))
+postMed=subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903"))
+postMed=ddply(post,.(.id,Scenario), with, data.frame(r      =median(r,              na.rm=TRUE),
+                                                     K      =median(K,              na.rm=TRUE),
+                                                     bk     =median(bk,             na.rm=TRUE),
+                                                     psi    =median(psi,            na.rm=TRUE),
+                                                     Bmsy   =median(Bmsy,           na.rm=TRUE),
+                                                     BmsyK  =median(BmsyK,          na.rm=TRUE),
+                                                     stock  =median(stock,          na.rm=TRUE),
+                                                     harvest=median(harvest,        na.rm=TRUE))) 
+
+postMd2=ddply(postMed,.(.id,Scenario), with, data.frame(r      =median(r,              na.rm=TRUE),
+                                                        bk     =median(bk,             na.rm=TRUE),
+                                                        logK   =median(log(K),         na.rm=TRUE),
+                                                        logBmsy=median(log(Bmsy),      na.rm=TRUE),
+                                                        Current=median(stock,          na.rm=TRUE),
+                                                        psi    =median(psi,            na.rm=TRUE),
+                                                        logB   =median(log(stock*Bmsy),na.rm=TRUE))) 
+```
+
+### Times series
+
+```{r, ts-catch, fig.height=12, fig.width=12}
+ctc=transmute(tseries(icesdata),.id=.id,year=year,data=catch)  
+ctc=rbind(cbind(Scenario="ICES",      ctc),
+          cbind(Scenario="Historical",mutate(ctc1903,data=catch)[,-3]))
+ctc=transform(ctc,Scenario=factor(Scenario,levels=c("Historical Catches","ICES Catches")))
+ctc=subset(ctc,.id%in%minyear$.id)
+ct2=ddply(ctc,.(.id), transform, catch=stdz(data))
+
+ggplot(ct2)+
+  geom_line(aes(year,catch,col=Scenario))+
+  geom_text(aes(x=1900, y=2, label=.id), 
+            hjust=0, vjust=1, size=3, color="black")+
+  facet_wrap(~.id,scale="free_y",ncol=4)+
+  labs(#title="Catch",
+       x    ="Year",
+       y    ="")+
+  scale_colour_manual(values=c("blue","deepskyblue"))+
+  theme_minimal(base_size=12)+
+  theme(
+    legend.position ="bottom",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text.y     =element_blank(),
+    axis.ticks.y    =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color="grey90"),
+    plot.title      =element_text(face="bold", size=14),
+    plot.subtitle   =element_text(size=12, color="grey30"),
+    panel.spacing   =unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** ICES Cat 1 assessments and historical catches.
+
+
+```{r, ts-hat, fig.height=12, fig.width=10}
+p2=ggplot(transform(subset(trjc,Scenario%in%c("EBiomass","EBiomass 1903")),
+                   Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                            labels=c("Historical Catches","ICES Catches"))))+  
+   labs(title   ="Time series",
+        x       ="Year",
+        y       =expression(B/B[MSY]))+
+  geom_line(aes(year, stock, color=Scenario),  
+            linewidth=0.8, alpha=0.8)+
+  geom_hline(aes(yintercept=1),linetype="dotted")+
+  # Panel labels with better positioning
+  geom_text(aes(x=min(year), y=max(stock), label=.id),
+            hjust   =0, vjust=1, 
+            size    =3.5, 
+            fontface="bold", col="grey50")+
+  # Faceting with better layout
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  # Improved labels and title
+  labs(title   ="Biomass Trajectories",
+       fill    ="Scenario",
+       x       ="Year",
+       y       ="Relative Biomass")+
+  # Enhanced theme
+  theme_minimal(base_size=12)+
+  scale_colour_manual(values=c("blue","deepskyblue"))+
+  theme(
+    legend.position ="bottom",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text       =element_blank(),
+    axis.ticks      =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color="grey90"),
+    plot.title      =element_text(face="bold", size=14),
+    plot.subtitle   =element_text(size=12, color="grey30"),
+    panel.spacing   =unit(0, "lines"))
+p2
+```
+
+**Figure `r iFig=iFig+1; iFig`** Time series of $B/B[MSY]$
+
+
+```{r, posteriors-shape, fig.height=12, fig.width=10}
+p4=ggplot(transform(subset(post,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"), 
+                                                      labels=c("Historical Catches","ICES Catches"))))+  
+  geom_density(aes(bk, fill =Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(bk, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=0.4, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+ 
+  scale_x_continuous(limits=c(0, 0.9), breaks=c(0, 0.5))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       x=expression(B[MSY]/K),
+       y="Density")+
+  theme_enhanced 
+p4
+
+ggsave(filename="../figs/hist/post-shape.pdf", 
+       plot    =p4, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors for shape
+
+
+```{r, posteriors-shape-single, fig.height=6,fig.width=10}
+density.1=ggplot(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_density(aes(bk,fill  =Scenario),alpha=0.9)+
+  geom_density(aes(bk,colour=Scenario))+
+  geom_vline(aes(xintercept=0.4))+
+     scale_x_continuous(limits=c(0, 1.5),
+                        breaks=c(0, 0.5, 1))+
+     scale_fill_manual( values=c("blue","deepskyblue"))+
+     scale_color_manual(values=c("#001F3F","grey"))+
+     labs(#title=expression(B[MSY]/K),
+          x    =expression(B[MSY]/K),
+          y    ="Density")+
+  theme_enhanced 
+
+ggsave(filename="../figs/hist/post-shape-single.pdf", 
+       plot    =density.1,  
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+```{r}
+p5=ggplot(transform(subset(post, Scenario %in% c("EBiomass", "EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  # Background zones with improved visibility
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0, 1, 1, 0, 0), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("springgreen", 0.15))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(1, Inf, Inf, 1, 1), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("tomato", 0.15))+
+  geom_density(aes(harvest, fill=Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(harvest, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=1, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  coord_cartesian(xlim=c(0, 2.0))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       fill    ="Scenario",
+       x=expression(F/F[MSY]),
+       y="Density")+
+  theme_enhanced 
+
+p5
+
+ggsave(filename="../figs/hist/post-ffmsy.pdf", 
+       plot    =p5, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors for $F/F_{MSY}$
+
+
+```{r, posteriors-ffmsy-single, fig.height=6,fig.width=10}
+density.2=ggplot(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")), 
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(0,1,1,0,0),y=c(0,0,Inf,Inf,0)),fill=alpha("springgreen",0.2))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(1,Inf,Inf,1,1),y=c(0,0,Inf,Inf,0)),fill=alpha("tomato",0.2))+
+  geom_density(aes(harvest,fill=Scenario),alpha=0.9)+
+  geom_density(aes(harvest,colour=Scenario))+
+  geom_vline(aes(xintercept=1.0),col="springgreen",size=1)+
+  coord_cartesian(xlim=c(0, 3.0))+
+  #scale_fill_manual(values=c("blue","deepskyblue"))+
+  #scale_color_manual(values=c("#001F3F","grey"))+
+     labs(#title=expression(F/F[MSY]),
+          fill    ="Scenario",
+          x    =expression(F/F[MSY]),
+          y    ="Density")+
+  theme_enhanced 
+
+ggsave(filename="../figs/hist/post-Ffmsy-single.pdf", 
+       plot    =density.2, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+
+```{r, posteriors-r, fig.height=10, fig.width=10}
+p6=ggplot(transform(subset(post,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+ 
+  geom_density(aes(r, fill =Scenario), alpha=0.7, linewidth=0.3)+
+  geom_density(aes(r, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(aes(xintercept=r.pr),data=prior, color="gray30",linewidth=0.8,linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  scale_x_continuous(limits=c(0, 0.75), breaks=c(0, 0.5))+
+  #scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  #scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+          fill ="Scenario",
+          x="r",
+          y="Density")+
+  theme_enhanced 
+        
+p6
+
+ggsave(filename="../figs/hist/post-r.pdf", 
+       plot    =p6, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors for`r`
+
+```{r, posteriors-r-single, fig.height=6,fig.width=10}
+density.3=ggplot(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_density(aes(r,fill =Scenario),alpha=0.9)+
+  geom_density(aes(r,colour=Scenario))+
+     scale_x_continuous(limits=c(0, 0.75),
+                        breaks=c(0, 0.5))+
+     scale_fill_manual(values=c("blue","deepskyblue"))+
+     scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="r",
+       fill ="Scenario",
+       x    ="r",
+       y    ="Density")+
+  theme_enhanced 
+
+ggsave(filename="../figs/hist/post-r-single.pdf", 
+       plot    =density.3, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+
+```{r, posteriors-bbmsy, fig.height=10, fig.width=10}
+p7=ggplot(transform(subset(post,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0, 1, 1, 0, 0), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("tomato", 0.15))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(1, Inf, Inf, 1, 1), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("springgreen", 0.15))+
+  geom_density(aes(stock, fill=Scenario),alpha=0.9, linewidth=0.3)+
+  geom_density(aes(stock, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=1, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  scale_x_continuous(limits=c(0, 1.5), breaks=c(0, 0.5, 1))+
+  scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       fill="Scenario",
+       x=expression(B[current]/B[MSY]),
+       y="Density")+
+  theme_enhanced 
+print(p7)
+
+ggsave(filename="../figs/hist/post-r.pdf", 
+       plot    =p7, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors for $B_{current}/B_{MSY}$
+
+```{r, posteriors-bk, fig.height=10, fig.width=10}
+p7.2=ggplot(transform(subset(post,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0, 0.4, 0.4, 0, 0), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("tomato", 0.15))+
+  geom_polygon(aes(x=x, y=y), 
+               data.frame(x=c(0.4, Inf, Inf, 0.4, 0.4), y=c(0, 0, Inf, Inf, 0)),
+               fill=alpha("springgreen", 0.15))+
+  geom_density(aes(bk, fill=Scenario),alpha=0.9, linewidth=0.3)+
+  geom_density(aes(bk, color=Scenario), linewidth=0.7, fill=NA)+
+  geom_vline(xintercept=0.4, color="gray30", linewidth=0.8, linetype="dashed")+
+  facet_wrap(~.id, scales="free_y", ncol=4)+
+  scale_x_continuous(limits=c(0, 1.5), breaks=c(0, 0.5, 1))+
+  #scale_fill_manual(values=c("blue","deepskyblue"))+ 
+  #scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title="Posterior Distributions of Fishing Mortality Relative to MSY",
+       #subtitle="Green zone indicates safe exploitation levels (F/FMSY < 1)",
+       fill="Scenario",
+       x=expression(B[current]/K),
+       y="Density")+
+  theme_enhanced 
+print(p7.2)
+
+ggsave(filename="../figs/hist/post-r.pdf", 
+       plot    =p7, 
+       width   =6, 
+       height  =8, 
+       dpi     =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors for $B_{current}/B_{MSY}$
+
+
+```{r, posteriors-bk-single, fig.height=12, fig.width=10}
+density.5=ggplot(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(0,0.4,0.4,0,0),y=c(0,0,Inf,Inf,0)),fill=alpha("tomato", 0.15))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(0.4,Inf,Inf,0.4,0.4),y=c(0,0,Inf,Inf,0)),fill=alpha("springgreen", 0.15))+
+  geom_density(aes(bk,fill=Scenario),alpha=0.9)+
+  geom_density(aes(bk,colour=Scenario))+
+  geom_vline(aes(xintercept=0.4),col="springgreen",size=1)+ 
+  coord_cartesian(xlim=c(0, 1.2))+
+  #scale_fill_manual(values=c("blue","deepskyblue"))+
+  #scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title=expression(B[current]/B[MSY]),
+       fill   ="Scenario",
+       x      =expression(B[current]/K),
+       y      ="Density")+
+  theme_enhanced 
+
+#ggsave(filename="../figs/hist/post-r-single.pdf", 
+#       plot    =density.4, 
+#       width   =6, 
+#       height  =8, 
+#       dpi     =300)
+```
+
+
+```{r, posteriors-bbmsy-single, fig.height=6, fig.width=10}
+density.4=ggplot(transform(subset(postMed,Scenario%in%c("EBiomass","EBiomass 1903")),
+                             Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches"))))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(0,1,1,0,0),y=c(0,0,Inf,Inf,0)),fill=alpha("tomato", 0.15))+
+  geom_polygon(aes(x=x,y=y),data.frame(x=c(1,Inf,Inf,1,1),y=c(0,0,Inf,Inf,0)),fill=alpha("springgreen", 0.15))+
+  geom_density(aes(stock,fill=Scenario),alpha=0.9)+
+  geom_density(aes(stock,colour=Scenario))+
+  geom_vline(aes(xintercept=1.0),col="springgreen",size=1)+ 
+  coord_cartesian(xlim=c(0, 3.0))+
+  #scale_fill_manual(values=c("blue","deepskyblue"))+
+  #scale_color_manual(values=c("#001F3F","grey"))+
+  labs(#title=expression(B[current]/B[MSY]),
+       fill   ="Scenario",
+       x      =expression(B[current]/B[MSY]),
+       y      ="Density")+
+  theme_enhanced 
+
+#ggsave(filename="../figs/hist/post-r-single.pdf", 
+#       plot    =density.4, 
+#       width   =6, 
+#       height  =8, 
+#       dpi     =300)
+```
+
+
+```{r, fig.height=8,fig.width=10}
+ggarrange(density.1,density.3, 
+          ncol=1,
+          common.legend=TRUE) 
+```
+
+
+```{r, fig.height=10,fig.width=10}
+ggarrange(density.2,density.4,density.5, 
+          ncol=1, 
+          common.legend=TRUE) 
+```
+
+```{r, scatter, fig.height=10, fig.width=10}
+p11=ggplot(cast(.id+iter~Scenario,value="stock",data=subset(post,iter%in%501:750)))+
+  geom_point(aes(EBiomass,`EBiomass 1903`,col=.id))+ 
+  theme(legend.position="none")+
+  scale_x_continuous(limits=c(0,2))+
+  scale_y_continuous(limits=c(0,2))+
+  scale_x_log10()+
+  scale_y_log10()
+p11=ggMarginal(p11, groupColour=TRUE, groupFill=TRUE, alpha=0.75)
+p11
+```
+
+**Figure `r iFig=iFig+1; iFig`** B/B[MSY]
+
+```{r, kb-plot2, fig.height=10, fig.width=10}
+load("../data/results/hist_kb.RData")
+kb2=cast(kb,.id+iter~Scenario,value="stock") 
+
+p12=ggplot(kb2,aes(`EBiomass`,`EBiomass 1903`,col=.id))+
+  geom_point( alpha=0.8,size=1.2)+
+  geom_abline(slope=1, intercept=0, linetype=1, color="grey50")+
+  geom_vline( xintercept=1, color="tomato", linetype=2, linewidth=0.8)+
+  geom_smooth(method="lm", se=FALSE, color="black",  linewidth=0.8)+
+  scale_x_log10(breaks=scales::trans_breaks("log10", function(x) 10^x),
+                labels=scales::trans_format("log10", scales::math_format(10^.x)))+
+  scale_y_log10(breaks=scales::trans_breaks("log10", function(x) 10^x),
+                labels=scales::trans_format("log10", scales::math_format(10^.x)))+
+  labs(x=expression(B/B[MSY]~"(ICES)"),
+       y=expression(B/B[MSY]~"(Historical)"))+
+  theme_bw()+
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color="grey90"),
+    legend.position ="none", #c(0.15, 0.90),
+    legend.background= element_rect(fill="white", color="black"),
+    legend.title=element_text(size=10),
+    legend.text=element_text(size=9),
+    axis.title=element_text(size=11),
+    axis.text=element_text(size=10))
+
+# Add marginal distributions
+p12=ggMarginal(p12,type="density")
+p12
+```
+
+**Figure `r iFig=iFig+1; iFig`** Status $B/B_{MSY}$
+
+```{r, fig.height=10,fig.width=10}
+# Create the scatter plot
+p8=ggplot(kb3, aes(x=EBiomass, y=`EBiomass 1903`))+
+  geom_point(alpha=0.7, color="blue")+ # Scatter points with transparency
+  geom_smooth(method="lm", se=FALSE, color="tomato", size=1)+ # Linear regression line
+  geom_abline(intercept=0, slope=1, linetype="dotted", color="black", size=0.8)+ # Reference line y=x
+  labs(
+    #title=expression("B/B"[MSY]),
+    #subtitle="Comparison of ICES and 1903 Biomass Estimates",
+    x="ICES Catches",
+    y="1903 Catches"
+  )+
+  theme_minimal(base_size=14)+ # Clean minimal theme
+  theme(
+    legend.position="none", # Remove unnecessary legend
+    panel.grid.minor=element_blank(), # Remove minor grid lines
+    panel.grid.major=element_line(color="grey90"), # Subtle major grid lines
+    plot.title=element_text(face="bold", size=16), # Bold title
+    plot.subtitle=element_text(size=12, color="grey30"), # Subtitle styling
+    axis.text.x=element_text(size=12), # Adjust x-axis text size
+    axis.text.y=element_text(size=12) # Adjust y-axis text size
+  )
+# Add marginal density plots using ggMarginal
+p8=ggMarginal(p8, type="density", margins="both", size=5, fill="blue", colour="lightblue")
+p8
+```
+
+**Figure `r iFig=iFig+1; iFig`** 
+
+```{r, posteriors-single, fig.height=10, fig.width=10}
+# Create the pairs plot with customization
+post2=ddply(post, .(.id, Scenario), with, data.frame(r    =median(r,    na.rm=TRUE),
+                                                     psi  =median(psi,  na.rm=TRUE),
+                                                     BmsyK=median(BmsyK,na.rm=TRUE),
+                                                     stock=median(stock,na.rm=TRUE)))
+dat=rename(subset(post2,Scenario%in%c("EBiomass","EBiomass 1903"))[,-(1)],
+     c(r   ="Growth rate",
+      psi  ="Initial",
+      BmsyK="Shape",
+      stock="B/B[MSY]"))
+dat=transform(dat,Scenario=factor(Scenario,levels=c("EBiomass 1903","EBiomass"),
+                                                      labels=c("Historical Catches","ICES Catches")))
+
+p13=ggpairs(dat,
+    lower=list(
+      continuous=wrap("points", alpha=0.3, size=1.5, color="#4C72B0")
+    ),
+    diag=list(
+      continuous=wrap("densityDiag", fill="#4C72B0", alpha=0.7)
+    ),
+    upper=list(
+         continuous=wrap("cor", size=3)
+    )) 
+p13
+
+# Save with appropriate dimensions
+ggsave(filename="../figs/hist/pairsBH.pdf", 
+       plot =p13, 
+       width=8, 
+       height= 8, 
+       dpi  =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors 
+
+
+```{r, tree, eval=FALSE}
+kb2=ddply(kb, .(.id,SRR), with,
+          data.frame(diff=(median(`1903`,na.rm=TRUE)-median(ICES,na.rm=TRUE))/
+                       median(ICES,na.rm=TRUE)))
+prior=rbind(cbind(SRR="BevHolt",subset(jbBH[[3]],Scenario=="ICES")[,c(1,3,5,7,9)]),
+            cbind(SRR="Ricker", subset(jbRK[[3]],Scenario=="ICES")[,c(1,3,5,7,9)]))
+kb3=merge(kb2,prior,by=c(".id","SRR"))
+kb3=cbind(Scenario=1,kb3)
+
+# Function to run regression tree and get variable importance for each scenario
+analyzeScenario=function(scenarioDat) {
+  # Select numeric variables, excluding diff as it's the response
+  ptomatoictors=scenarioDat %>%
+    select_if(is.numeric) %>%
+    select(-diff)
+  
+  # Fit regression tree
+  treeModel=rpart(diff ~ .,
+                  data=cbind(ptomatoictors, diff=scenarioDat$diff),
+                  method="anova",
+                  control=rpart.control(cp=0.01))
+  
+  # Get variable importance
+  importance=data.frame(
+    variable=names(treeModel$variable.importance),
+    importance=treeModel$variable.importance
+  ) %>%
+    arrange(desc(importance))
+  
+  return(importance)}
+
+# Analyze each scenario separately
+scenarios=unique(unique(kb3$Scenario))
+results=list()
+
+for(scenario in scenarios) {
+  scenarioDat=kb3[,c(1,3:8)] %>% filter(Scenario==scenario)
+  results[[scenario]]=analyzeScenario(scenarioDat)}
+
+scenarioDat=kb3[,c(1,3:8)] %>% filter(Scenario == "1")
+treeModel=rpart(diff ~ ., 
+                   data=select_if(scenarioDat, is.numeric),
+                   method="anova",
+                   control=rpart.control(cp=0.01))
+rpart.plot(treeModel, main="1",
+           box.palette="RdBu",
+           shadow.col="gray",
+           nn=TRUE)
+```
+
+
+### Posteriors
+
+```{r, posteriors-pairs,fig.height=10,fig.width=10}
+# Create enhanced pairs plot
+library(GGally)
+library(ggplot2)
+
+theme_set(theme(
+     strip.background=element_rect(fill="grey95"),
+     strip.text=element_text(size=8),
+     axis.text.y=element_text(size=7),
+     axis.text.x=element_text(size=7,angle=45),
+     legend.position="bottom",
+     legend.text=element_text(size=8),
+     panel.grid.minor=element_blank() 
+   ))
+
+# Create enhanced pairs plot
+p3=ggpairs(
+  postMd2[, c("r","bk","logK","logBmsy","Current","psi","logB","Scenario")],
+  columnLabels=c("r", "B[MSY]/K", "log(K)", "log(B[MSY])",
+                   "B[current]/B[MSY]", "B[initial]",
+                   "log(B[current])", "Scenario"),
+  labeller=label_parsed,
+  lower=list(
+    continuous=wrap("points", 
+                     alpha=0.4,    # Increased transparency
+                     size=1.0,     # Smaller points for clarity
+                     shape=16)     # Solid circles
+  ),
+  diag=list(
+    continuous=wrap("densityDiag", 
+                     alpha=0.8,    # More solid density plots
+                     color="black") # Black outline
+  ),
+  upper=list(
+    continuous=wrap("cor", 
+                     size=2.5,     # Adjusted correlation text size
+                     color="black") # Black text
+  ),
+  combo=wrap("box_no_facet", 
+               outlier.shape=NA,
+               alpha=0.6),
+  mapping=ggplot2::aes(color=Scenario, fill=Scenario))
+
+# Add custom colors with better contrast
+# p3=add_to_ggmatrix(
+#    p3,
+#    location="all",
+#    scale_color_manual(values=c("darkblue", "skyblue")))
+#  p3=add_to_ggmatrix(p3,
+#    scale_fill_manual(values=c("skyblue","darkblue")))
+p3
+```
+**Figure `r iFig=iFig+1; iFig`** Posteriors

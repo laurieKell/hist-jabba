@@ -1,0 +1,845 @@
+---
+title: "Historical JABBA runs"
+subtitle: "Results"
+author: 
+  L.T. Kell
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Estimating $F_{MNY}$ for Atlantic Mackerel}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+tseries
+kobe
+
+Models of Reduced Complexity (MRCs) based on biomass dynamics offer an approach to understanding historical stock dynamics in data-limited situations. These models can use catch time series when detailed age-structured information is unavailable, thereby enabling broad-scale analyses across multiple fish stocks. They can also incorporate prior knowledge, which is particularly valuable when working with historical data series of varying reliability. They therefore serve as effective tools for meta-analysis. 
+
+
+**Data Requirements**
+MRCs like JABBA can effectively utilise catch time series data when detailed age-structured information is unavailable. These models are particularly valuable when working with data-limited situations, making them suitable for broad-scale analyses across multiple stocks.
+
+**Uncertainty Handling**
+The Bayesian implementation in modern MRCs allows for better quantification of uncertainty and incorporation of prior knowledge. This is especially useful when dealing with historical data series where confidence in the data may vary over time.
+
+**Biological Complexity**
+MRCs may oversimplify the biological processes compared to age-structured models. 
+
+
+
+
+1. Perfect index to run JABBA for all stocks
+2. Add HIST data and rerun JABBA
+3. Bfrac/initisl.ssb Priors: 
+        HIST data 0.9 with sd=0.2/0.3 
+        ICES data value from the FLR database with sd=0.2/0.3
+4. Select stocks for which ratio between stock from perfect (stock.mu) and stock from ICES (stock) is between 0.7 and 1.3
+5. Run sensitivity for priors (relax the priors) and for selection criteria (make it more stringent, 0.8-1.2)
+
+
+```{r, knitr, eval=TRUE, echo=FALSE, warning=FALSE, cache=FALSE}
+library(knitr)
+
+opts_chunk$set(comment   =NA, 
+               warning   =FALSE, 
+               message   =FALSE, 
+               error     =FALSE, 
+               echo      =FALSE, 
+               cache     =TRUE, 
+               cache.path="../cache/04/",
+               fig.path  ="../figs/04-",
+               fig.width =8,
+               fig.height=6,
+               dev       ="png")
+
+iFig=0
+iTab=0
+```
+
+
+```{r, eval=FALSE}
+setwd("C:/active/flrpapers/hist/resubmit/Rmd")
+```
+
+```{r, pkgs}
+library(ggplot2)
+library(ggpubr)
+library(GGally)
+library(ggpubr)
+
+library(ggplot2)
+library(ggExtra)
+library(gridExtra)
+library(ggside)
+
+library(purrr)
+
+library(FLCore)
+library(FLBRP)
+require(ggplotFL)
+
+library(purrr)
+  library(plyr)
+library(dplyr)
+library(reshape)
+
+library(latex2exp)
+
+library(data.table)
+
+library(stringr)
+
+library(JABBA)
+
+library(foreach)
+library(doParallel)
+
+library(rpart)
+library(rpart.plot)
+
+theme_set(theme_minimal(base_size=12))
+```
+
+```{r, jabba}
+load("C:/active/flrpapers/jabba_eval/data/fits/hist/JABBA.RData")
+
+fitEB=llply(hist, function(x) x[["EBiomass"]]$fit)
+jbEB =jabbaExtract(fitEB)
+
+fit1903=llply(hist, function(x) x[["EBiomass 1903"]]$fit)
+jb1903 =jabbaExtract(fit1903)
+
+kb=rbind(cbind(Scenario="E. Biomass",     ddply(jbEB[[  "trajectory"]],.(.id), subset, year==max(year))),
+         cbind(Scenario="E. Biomass 1903",ddply(jb1903[["trajectory"]],.(.id), subset, year==max(year))))[,
+                                                                                        c(".id","stock","harvest")]
+
+post =rbind(cbind(Scenario="E. Biomass",     jbEB$posteriors),
+            cbind(Scenario="E. Biomass 1903",jb1903$posteriors))
+
+prior =rbind(cbind(Scenario="E. Biomass",     jbEB$priors),
+             cbind(Scenario="E. Biomass 1903",jb1903$priors))
+
+trjc   =rbind(cbind(Scenario="E. Biomass",     jbEB$traj),
+              cbind(Scenario="E. Biomass 1903",jb1903$traj))
+
+save(kb,   file="../data/results/kb.RData")
+save(post, file="../data/results/post.RData")
+save(prior,file="../data/results/prior.RData")
+save(trjc, file="../data/results/trjc.RData")
+```
+
+
+```{r, data}
+library(icesdata)
+
+data(icesdata)
+data(spp)
+data(info)
+
+ctc1903=read.csv("C:/active/flr/icesdata/inputs/NorthSea_stocks.csv")[,1:14] 
+ctc1903$Discards[is.na(ctc1903$Discards)]=0
+
+names(ctc1903)[c(3:4,6)]=c(".id","year","catch")
+ctc1903=ctc1903[,c(3:4,6)]
+
+stks    =names(icesdata)
+excld   =c("aru.27.5b6a", "bss.27.4bc7ad-h", "meg.27.7b-k8abd", 
+           "mon.27.8c9a", "ple.27.21-23",    "spr.27.3a4")
+icesdata=icesdata[!(stks%in%excld)]
+stks    =names(icesdata)
+
+minYrs=merge(ldply(icesdata,function(x) dims(catch(x))$minyear),
+             ddply(ctc1903, .(.id), with, min(year)), by=".id")
+names(minYrs)[2:3]=c("icesdata","historic")
+worStks=subset(minYrs,icesdata>historic)$.id
+
+save(minYrs, file="../data/minYrs.RData")
+save(worStks,file="../data/worStks.RData")
+```
+
+### Priors
+
+```{r, priors}
+p1=ggplot(prior, aes(x=m))+
+     geom_histogram(binwidth=0.025, 
+                color   ="black", 
+                fill    ="#4C72B0", 
+                alpha   =0.8) +
+     scale_x_continuous(limits=c(0, 1),
+                     breaks=seq(0, 1, 0.25)) +
+     labs(x="Shape Parameter",
+          y="Count")+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_line(color="grey90"),
+        strip.background=element_rect(fill ="white"),
+        strip.text      =element_text(size =12, face = "bold"),
+        axis.title      =element_text(size =12),
+        axis.text       =element_text(size =10),
+        panel.spacing   =unit(0, "lines"))
+p1
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/shape.pdf", 
+       plot  =p1, 
+       width =6, 
+       height=8, 
+       dpi   =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Prior for shape
+
+```{r, priors-2}
+p2=ggplot(prior, aes(r, m)) +
+  geom_point(size=2, alpha=0.8) +
+  scale_x_continuous(limits=  c(0, 0.7),
+                     breaks=seq(0, 0.7, 0.2)) +
+  scale_y_continuous(limits=  c(0.15, 0.55),
+                     breaks=seq(0.2,  0.5, 0.1)) +
+  labs(x    ="Growth rate (r)",
+       y    ="Shape parameter")+
+  theme_bw()+
+  theme(
+    legend.position  =c(0.85, 0.9),
+    panel.grid.minor =element_blank(),
+    panel.grid.major =element_line(color="grey90"),
+    legend.background=element_rect(fill ="white", color = "black"),
+    legend.title     =element_text(size =10),
+    legend.text      =element_text(size = 9),
+    axis.title       =element_text(size =11),
+    axis.text        =element_text(size =10))
+
+# Add marginal distributions
+p2=ggMarginal(p2,type       ="density",
+                 alpha      =0.3,
+                 fill       ="blue")
+
+p2
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/shape_r.pdf", 
+       plot  = p2, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`**  Priors by SRR 
+
+
+```{r, ll, eval=FALSE}
+load("../data/bhs.RData")
+load("../data/rks.RData")
+
+lls=merge(ldply(bhs, function(x) attributes(x)$logLik[[1]]),
+          ldply(rks, function(x) attributes(x)$logLik[[1]]),by=".id")
+names(lls)[2:3]=c("bevHolt","ricker")
+
+p4=ggplot(lls) +
+    geom_point(aes(ricker, bevHolt), alpha = 0.6, size = 2) +
+    geom_abline(aes(slope=1, intercept=0), linetype="dashed", color="gray40") +
+    theme_minimal() +
+    labs(x    = "Ricker", 
+         y    = "Beverton & Holt",
+         title= "Log likelihoods: comparison of Ricker and Beverton-Holt Models") +
+    coord_equal()  # Force 1:1 aspect ratio
+
+# Add marginal distributions
+#bigger is better
+ggExtra::ggMarginal(p4,
+                    type = "density",    
+                    fill = "lightgray",  
+                    alpha = 0.5,         
+                    size = 5)            
+
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/ll.pdf", 
+       plot  = p4, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`**  Log likelihoods by SRR 
+
+```{r, kb-plot}
+p5<-ggplot(subset(kb, Scenario %in% c("1903","Perfect"))) +
+  geom_density(aes(stock, fill=Scenario), alpha=0.5) +
+  geom_vline(xintercept=1, color="red", linewidth=0.8) +
+  scale_x_continuous(limits=  c(0, 6),
+                     breaks=seq(0, 6, 1)) +
+  scale_fill_manual( values=c("1903"   ="#FC8D62", 
+                              "Perfect"="#66C2A5")) +
+  labs(x=expression(B/B[MSY]),
+       y="Density") +
+  theme_bw() +
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color= "grey90"),
+    strip.background=element_rect(fill = "white"),
+    strip.text      =element_text(size = 11, face = "bold"),
+    axis.title      =element_text(size = 11),
+    axis.text       =element_text(size = 10),
+    legend.position ="right",
+    legend.title    =element_text(size = 10),
+    legend.text     =element_text(size = 9),
+    panel.spacing   =unit(0, "lines"))
+p5
+# Save the plot
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/stock.pdf", 
+       plot = p5, 
+       width = 7, 
+       height = 6, 
+       dpi = 300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** 
+
+```{r, kb-plot2}
+load("../data/results/hist_kb.RData")
+kb2=cast(kb,.id~Scenario,value="stock") 
+
+p6=ggplot(kb2) +
+  geom_point(aes(Perfect, `1903`), alpha = 0.8, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = 1, color = "grey50") +
+  geom_hline(yintercept = 1, color = "red", linetype = 2, linewidth = 0.8) +
+  geom_vline(xintercept = 1, color = "red", linetype = 2, linewidth = 0.8) +
+  geom_smooth(aes(Perfect, `1903`), method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
+  scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  labs(x = expression(B/B[MSY]~"(ICES)"),
+       y = expression(B/B[MSY]~"(1903)")) +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    legend.position = c(0.15, 0.90),
+    legend.background = element_rect(fill = "white", color = "black"),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10)
+  )
+p6
+# Add marginal distributions
+p6=ggMarginal(p6,type       ="density",
+                 alpha      =0.5,
+                 size       =3)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Status $B/B_{MSY}$
+
+```{r, ssb-hat-bh, fig.height=10.5, fig.width=8}
+p7=ggplot(subset(trjc,Scenario%in%c("EBiomass","EBiomass 1903")))+
+  # Main time series
+  geom_line(aes(year, stock, color = Scenario), 
+            linewidth = 0.8, alpha = 0.8) +
+  geom_hline(aes(yintercept=1),linetype="dotted")+
+  # Panel labels with better positioning
+  geom_text(aes(x = min(year), y = max(stock), label = .id),
+            hjust    = 0, vjust = 1, 
+            size     = 3.5, 
+            fontface = "bold", col="grey50") +
+  # Faceting with better layout
+  facet_wrap(~.id, scales = "free_y", ncol = 5) +
+  # Improved labels and title
+  labs(title   ="Biomass Trajectories",
+       subtitle="ICES",
+       x       ="Year",
+       y       ="Relative Biomass") +
+  # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+p7
+
+# Save with appropriate dimensions
+ggsave(p7,
+       filename="C:/flrpapers/jabba_eval/hist/finalFigs/trjc.pdf", 
+       width = 10, 
+       height = 8, 
+       dpi = 300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Time series of $B/B_{MSY}$
+
+
+```{r, b-hat-ffmsy, fig.height=10.5, fig.width=8}
+p8=ggplot(subset(trjc,Scenario%in%c("Perfect","ffmsy")))+
+  # Main time series
+  geom_line(aes(year, stock, color = Scenario), 
+            linewidth = 0.8, alpha = 0.8) +
+  geom_hline(aes(yintercept=1),linetype="dotted")+
+  # Panel labels with better positioning
+  geom_text(aes(x = min(year), y = max(stock), label = .id),
+            hjust    = 0, vjust = 1, 
+            size     = 3.5, 
+            fontface = "bold", col="grey50",
+            margin = margin(5, 5, 5, 5)) +
+  # Faceting with better layout
+  facet_wrap(~.id, scales = "free_y", ncol = 5) +
+  # Improved labels and title
+  labs(title   ="Biomass Trajectories",
+       subtitle="ICES",
+       x       ="Year",
+       y       ="Relative Biomass") +
+  # Enhanced theme
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    legend.title = element_blank(),
+    strip.text = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90"),
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 12, color = "grey30"),
+    panel.spacing = unit(0, "lines"))
+p8
+
+# Save with appropriate dimensions
+ggsave(p8,
+       filename="C:/flrpapers/jabba_eval/hist/finalFigs/trjc-ffmsy.pdf", 
+       width = 10, 
+       height = 8, 
+       dpi = 300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Time series of $B/B_{MSY}$
+
+```{r, posteriors}
+dat=subset(post)[,c("psi","r","Fmsy","m","stock")]
+
+# Create the pairs plot with customization
+p9=ggpairs(dat[sample(seq(dim(dat)[1]),1000),],
+    lower=list(continuous=wrap("points",      alpha=0.3,size=0.5,color="#4C72B0")),
+    diag =list(continuous=wrap("densityDiag", fill="#4C72B0", alpha=0.7)),
+    upper=list(continuous=wrap("cor",         size = 3)))
+p9
+# Save with appropriate dimensions
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/pairs.pdf", 
+       plot  = p9, 
+       width = 8, 
+       height= 8, 
+       dpi   = 300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors
+
+
+```{r, posteriors-2}
+# Create the pairs plot with customization
+postMed=ddply(post, .(.id, Scenario), with, data.frame(r    =median(r,    na.rm=TRUE),
+                                                                psi  =median(psi,  na.rm=TRUE),
+                                                                BmsyK=median(BmsyK,na.rm=TRUE),
+                                                                stock=median(stock,na.rm=TRUE)))
+dat=rename(subset(postMed,Scenario%in%c("1903","ICES"))[,-(1)],
+     c(r    ="Growth rate",
+      psi  ="Initial",
+      BmsyK="Shape",
+      stock="B/B[MSY]"))
+
+p10=ggpairs(dat,
+    lower = list(
+      continuous = wrap("points", alpha = 0.3, size = 0.5, color = "#4C72B0")
+    ),
+    diag = list(
+      continuous = wrap("densityDiag", fill = "#4C72B0", alpha = 0.7)
+    ),
+    upper = list(
+      continuous = wrap("cor", size = 3)
+    )) 
+
+
+p10
+# Save with appropriate dimensions
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/pairsBH.pdf", 
+       plot  = p10, 
+       width = 8, 
+       height= 8, 
+       dpi   = 300)
+```
+
+**Figure `r iFig=iFig+1; iFig`** Posteriors 
+
+
+```{r, psi-bev, fig.width=10, fig.height=15}
+load("../data/fits/historical/vln.RData")
+vln=subset(vln,.id%in%worStks)
+
+p11=ggplot(subset(vln, SRR!="Ricker"&.id%in%worStks))+  
+      geom_density(aes(psi,fill=Scenario, 
+                       y=after_stat(density/max(density))),alpha=0.25)+
+      #scale_fill_manual(  values=c("blue","cyan"))+
+      #scale_colour_manual(values=c("blue","cyan"))+
+      #geom_text(aes(x=Inf,y=Inf,label=.id),
+      #          hjust=1,vjust=1,size=5,col="grey30",data=data.frame(.id=worStks))+
+      #`geom_vline(aes(xintercept=stockK,col=Scenario),data=subset(vln,Scenario%in%c("1903","ICES")))+
+      facet_wrap(~.id, scales="free", ncol=6) +
+      theme_minimal(base_size = 10) +
+      theme(
+        legend.position ="bottom",
+        legend.title    =element_blank(),
+        strip.text      =element_blank(),
+        axis.text       =element_blank(),
+        axis.ticks      =element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        plot.title      =element_text(face ="bold", size =14),
+        plot.subtitle   =element_text(size =12,     color="grey30"),
+        panel.spacing   =unit(0, "lines"))+
+        labs(title = TeX("(Beverton & Holt: $B/B_{MSY}$ at start of ICES series (PSI))"),
+             x    ="PSI",
+             y    ="")
+
+p11
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/p11.pdf", 
+       plot  = p11, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+
+```
+
+```{r, psi-med}
+p13=ggplot(psiMed)+
+  geom_density(aes(psi,fill=Scenario),alpha=0.3)+facet_grid(What~.)+
+  #geom_density(aes(psi),data=prior,fill="green",alpha=0.4)+
+  scale_x_continuous(limits=c(0,10))+
+  theme_minimal(10)+
+  theme(legend.position="bottom", 
+        axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title="1903",
+       x    ="PSI",
+       y    ="")
+p13
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/13.pdf", 
+       plot  = p13, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`**
+
+
+```{r, psi-2}
+p14=ggplot(psi)+
+  geom_density(aes(psi,fill=Scenario),alpha=0.3)+facet_grid(What~.)+
+  #geom_density(aes(psi),data=prior,fill="green",alpha=0.4)+
+  scale_x_continuous(limits=c(0,10))+
+  theme_minimal(10)+
+  theme(legend.position="bottom", 
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title="1903",
+       x    ="PSI",
+       y    ="")
+p14
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/p14.pdf", 
+       plot  = p14, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+
+
+**Figure `r iFig=iFig+1; iFig`**
+
+```{r}
+### B/BMSY in last year
+dat=ddply(post, .(.id,Scenario), with, data.frame(stock=median(stock),
+                                                  r    =median(r),
+                                                  psi  =median(psi),
+                                                  BmsyK=median(BmsyK)))
+
+p15=ggplot(subset(dat,Scenario%in%c("ICES","1903")))+
+    geom_point(aes(stock,r,col=Scenario),alpha=0.5)+
+  theme_minimal(10)+
+  theme(legend.position="bottom", 
+        axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title="1903",
+       x    ="PSI",
+       y    ="")
+p15=ggMarginal(p15, groupColour=TRUE, groupFill=TRUE)
+p15
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/p15.pdf", 
+       plot  = p15, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+**Figure `r iFig=iFig+1; iFig`**
+
+```{r}
+p16=ggplot(subset(dat,Scenario%in%c("EBiomass","EBiomass 1903")))+
+    geom_point(aes(stock,BmsyK,col=paste(Scenario)),alpha=0.5)+
+  theme_minimal(10)+
+  theme(legend.position="bottom", 
+        axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title  =expression("B/B[MSY]"),
+       x      ="ICES",
+       y      ="JABBA",
+       lengend="Scenario")
+p16=ggMarginal(p16, groupColour=TRUE, groupFill=TRUE)
+p16
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/p16.pdf", 
+       plot  = p16, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+**Figure `r iFig=iFig+1; iFig`**
+
+```{r}
+p17=ggplot(subset(dat,Scenario%in%c("ICES","1903")))+
+    geom_point(aes(stock,psi,col=Scenario),alpha=0.5)+
+  theme_minimal(10)+
+  theme(legend.position="bottom", 
+        axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank())+  
+  labs(title="1903",
+       x    ="PSI",
+       y    ="")
+p17=ggMarginal(p17, groupColour=TRUE, groupFill=TRUE)
+p17
+ggsave(filename="C:/flrpapers/jabba_eval/hist/finalFigs/p17.pdf", 
+       plot  = p17, 
+       width =  7, 
+       height=  6, 
+       dpi   =300)
+```
+
+**Figure `r iFig=iFig+1; iFig`**
+
+
+
+```{r, tree, eval=FALSE}
+kb2=ddply(kb, .(.id,SRR), with,
+          data.frame(diff=(median(`1903`,na.rm=TRUE)-median(ICES,na.rm=TRUE))/
+                       median(ICES,na.rm=TRUE)))
+prior=rbind(cbind(SRR="BevHolt",subset(jbBH[[3]],Scenario=="ICES")[,c(1,3,5,7,9)]),
+            cbind(SRR="Ricker", subset(jbRK[[3]],Scenario=="ICES")[,c(1,3,5,7,9)]))
+kb3=merge(kb2,prior,by=c(".id","SRR"))
+kb3=cbind(Scenario=1,kb3)
+
+# Function to run regression tree and get variable importance for each scenario
+analyzeScenario=function(scenarioDat) {
+  # Select numeric variables, excluding diff as it's the response
+  predictors=scenarioDat %>%
+    select_if(is.numeric) %>%
+    select(-diff)
+  
+  # Fit regression tree
+  treeModel=rpart(diff ~ .,
+                  data = cbind(predictors, diff = scenarioDat$diff),
+                  method = "anova",
+                  control = rpart.control(cp = 0.01))
+  
+  # Get variable importance
+  importance=data.frame(
+    variable = names(treeModel$variable.importance),
+    importance = treeModel$variable.importance
+  ) %>%
+    arrange(desc(importance))
+  
+  return(importance)}
+
+# Analyze each scenario separately
+scenarios=unique(unique(kb3$Scenario))
+results=list()
+
+for(scenario in scenarios) {
+  scenarioDat=kb3[,c(1,3:8)] %>% filter(Scenario==scenario)
+  results[[scenario]]=analyzeScenario(scenarioDat)}
+
+scenarioDat=kb3[,c(1,3:8)] %>% filter(Scenario == "1")
+treeModel=rpart(diff ~ ., 
+                   data = select_if(scenarioDat, is.numeric),
+                   method = "anova",
+                   control = rpart.control(cp = 0.01))
+rpart.plot(treeModel, main="1",
+           box.palette = "RdBu",
+           shadow.col = "gray",
+           nn = TRUE)
+```
+
+**Figure `r iFig=iFig+1; iFig`**
+
+
+```{r, ts, eval=FALSE}
+ggplot(subset(trjcMed,(!Scenario%in%c("Indices"))))+
+  geom_line(aes(year,stock,color=Scenario,linetype=What), 
+            linewidth = 0.8, alpha = 0.8) +
+  geom_text(aes(x=-Inf,y=-Inf,label=.id),
+            hjust    =-0.1,    vjust =-0.1, 
+            size     = 3.5, 
+            fontface = "bold", col="grey50") +
+  facet_wrap(~.id, scales = "free_y", ncol = 4) +
+  labs(title=TeX("$B/B_{MSY}$"),
+       x    ="Year",
+       y    ="Relative Biomass") +
+  scale_color_manual(values=c("1903"="#FC8D62", 
+                              "ICES"="#66C2A5",
+                              "PMPD"="#ABC666")) +
+  theme_minimal(base_size=12) +
+  theme(
+    legend.position ="none",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text       =element_blank(),
+    axis.ticks      =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_line(color = "grey90"),
+    plot.title      =element_text(face = "bold", size = 14),
+    plot.subtitle   =element_text(size = 12, color = "grey30"),
+    panel.spacing   =unit(0, "lines"))
+```
+
+**Figure `r iFig=iFig+1; iFig`** Time series
+
+
+```{r, psi, eval=FALSE}
+ggplot(subset(psi,(!Scenario%in%c("Indices")&What==SRR)))+
+  geom_density(aes(psi,fill=Scenario),
+               alpha=0.3)+
+  geom_vline(aes(xintercept=psi),
+             col="red",data=prior)+
+  geom_text(aes(x=Inf,y=Inf,label=.id),
+            hjust=1,vjust=1,size=5,col="grey30",data=data.frame(.id=worStks))+
+  scale_x_continuous(limits=c(0,NA))+
+  facet_wrap(~.id,scale="free",ncol=6)+ 
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position ="bottom",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text.y     =element_blank(),
+    axis.ticks.y    =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_blank(),
+    plot.title      =element_text(face ="bold", size =14),
+    plot.subtitle   =element_text(size =12,     color="grey30"),
+    panel.spacing   =unit(0, "lines"))+
+    labs(title=TeX("$B/B_MSY$ at start of ICES series (PSI))"),
+         x    ="PSI",
+         y    ="")  
+```
+
+**Figure `r iFig=iFig+1; iFig`** Status in 1st ICES data year
+
+
+```{r, r, eval=FALSE}
+ggplot(subset(post,(!Scenario%in%c("Indices")&What==SRR)))+
+  geom_density(aes(r,fill=Scenario),
+               alpha=0.3)+
+  geom_vline(aes(xintercept=r),
+             col="red",data=prior)+
+  geom_text(aes(x=Inf,y=Inf,label=.id),
+            hjust=1,vjust=1,size=5,col="grey30",data=data.frame(.id=worStks))+
+  scale_x_continuous(limits=c(0,NA))+
+  facet_wrap(~.id,scale="free",ncol=6)+
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position ="bottom",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text       =element_blank(),
+    axis.ticks      =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_blank(),
+    plot.title      =element_text(face ="bold", size =14),
+    plot.subtitle   =element_text(size =12,     color="grey30"),
+    panel.spacing   =unit(0, "lines"))+
+  labs(title = TeX("r"),
+       x    ="PSI",
+       y    ="")  
+```
+
+**Figure `r iFig=iFig+1; iFig`** r
+
+
+
+```{r, current, eval=FALSE}
+ggplot(subset(post,(!Scenario%in%c("Indices")&What==SRR)))+
+  geom_density(aes(stock,fill=Scenario),
+               alpha=0.3)+
+  #geom_vline(aes(xintercept=0.5),col="red",data=prior)+
+  geom_text(aes(x=Inf,y=Inf,label=.id),
+            hjust=1,vjust=1,size=5,col="grey30",data=data.frame(.id=worStks))+
+  scale_x_continuous(limits=c(0,NA))+
+  facet_wrap(~.id,scale="free",ncol=6)+ 
+  theme_minimal(base_size = 10) +
+  theme(
+    legend.position ="bottom",
+    legend.title    =element_blank(),
+    strip.text      =element_blank(),
+    axis.text.y     =element_blank(),
+    axis.ticks.y    =element_blank(),
+    panel.grid.minor=element_blank(),
+    panel.grid.major=element_blank(),
+    plot.title      =element_text(face ="bold", size =14),
+    plot.subtitle   =element_text(size =12,     color="grey30"),
+    panel.spacing   =unit(0, "lines"))+
+  labs(title= TeX("$B/B_{msy}$"),
+        x   ="B/Bmsy",
+        y   ="")  
+```
+
+**Figure `r iFig=iFig+1; iFig`** Current status
+
+
+```{r, shape, eval=FALSE}
+ggplot(subset(post,(!Scenario%in%c("Indices"))))+
+  geom_density(aes(bk,fill=Scenario),
+               alpha=0.3)+
+  #geom_vline(aes(xintercept=0.5),
+  #           col="red",data=prior)+
+  geom_text(aes(x=Inf,y=Inf,label=.id),
+            hjust=1,vjust=1,size=5,col="grey30",data=data.frame(.id=worStks))+
+  scale_x_continuous(limits=c(0.2,0.7))+
+  facet_wrap(~.id,scale="free",ncol=6)+ 
+  theme_minimal(base_size = 10) +
+  theme(legend.position ="bottom",
+        legend.title    =element_blank(),
+        strip.text      =element_blank(),
+        axis.text.y     =element_blank(),
+        axis.ticks.y    =element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        plot.title      =element_text(face ="bold", size =14),
+        plot.subtitle   =element_text(size =12,     color="grey30"),
+        panel.spacing   =unit(0, "lines"))+
+  labs(title= TeX("shape"),
+       x    ="Bmsy/K",
+       y    ="")  
+```
+
+**Figure `r iFig=iFig+1; iFig`** Shape
+
+

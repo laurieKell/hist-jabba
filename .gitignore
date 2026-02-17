@@ -1,0 +1,49 @@
+# R
+.Rhistory
+.Rapp.history
+.Ruserdata
+.Rproj.user/
+*.Rproj
+
+# R Markdown cache and temporary files
+*_cache/
+*_files/
+*.knit.md
+
+# Cache directories
+cache/
+
+# Data folder
+data/
+
+# Figures folder
+figs/
+
+# R Markdown build artifacts (uncomment if you want to exclude compiled outputs)
+# *.html
+# *.log
+# *.tex
+
+# Data files - included by default for reproducibility
+# Uncomment the following lines if data files are too large or should not be shared:
+# *.RData
+# *.csv
+# *.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
