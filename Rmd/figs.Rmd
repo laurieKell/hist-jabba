@@ -474,9 +474,8 @@ ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig7.png",
 
 **Figure 7.** Density of the aggregated posterior distribution for the population growth parameter (r), shape (i.e., BMSY/SSB0), the spawning biomass estimated at the start of the ICES times series (Binitial) and the spawning biomass estimated at the end of the ICES times series (Bcurrent; in log scale), the stock carrying capacity (SSB0; in log scale) for both scenarios, “ICES catches JABBA” and the “Historical catches JABBA” models.
 
-```{r}
-source("C:/active/flr/diags/R/diags-jabba.R")
-load("C:/active/flrpapers/hist/jabba-hist/data/results/histICES.RData")
+```{r, eval=FALSE}
+source("../flr/diags/R/diags-jabba.R")
 
 jbICES=llply(histICES, function(x) x[["ICES"]]$fit)
 jb1903=llply(histICES, function(x) x[["1903"]]$fit)
