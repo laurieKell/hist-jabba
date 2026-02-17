@@ -39,9 +39,9 @@ icesdata=icesdata[names(icesdata)%in%ids]
 priors=ldply(icesdata, function(x) 
   tryIt(c(eqsim(x)[c("bmsy","b0"),drop=TRUE],"fmsy"=benchmark(x)["fmsy"])))
 priors=ddply(priors, .(.id), with, 
-          tryIt(FLRebuild::pellatParams(FLPar(msy=bmsy*(1-exp(-fmsy)),bmsy=bmsy,k=bmsy/0.4))[drop=TRUE]))
+  tryIt(FLRebuild::pellatParams(FLPar(msy=bmsy*(1-exp(-fmsy)),bmsy=bmsy,k=b0))[drop=TRUE]))
 priors=merge(priors,ldply(icesdata, function(x) data.frame("psi"=median(ssb(x)[,1:1,drop=TRUE]))))
-priors=transform(priors,psi=psi/k,shape=0.4)
+priors=transform(priors,psi=psi/k,shape=bmsy/k)
 priorICES=priors[,c(".id","r","p","k","msy","bmsy","fmsy","virgin","psi","shape")]
 
 dat=transform(priorICES,.id=factor(.id,levels=unlist(priorICES[order(priorICES$psi),".id"])))
