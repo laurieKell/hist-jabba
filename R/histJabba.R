@@ -182,3 +182,9 @@ save(psi, psiMed, file="../data/fits/psi.RData")
 
 save(histICES,file="../data/results/histICES.RData")
 
+bbmsy=ldply(histICES, function(x) ldply(x, function(x) x[["fit"]]$timeseries[,,"BBmsy"],.id="Scenario"),.id="stock")
+ffmsy=ldply(histICES, function(x) ldply(x, function(x) x[["fit"]]$timeseries[,,"FFmsy"],.id="Scenario"),.id="stock")
+
+
+
+
