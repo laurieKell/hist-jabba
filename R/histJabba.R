@@ -30,7 +30,7 @@ ctc=rbind(cbind(What="ICES",transmute(ts,     .id=.id,year=year,data=catch)),
 
 chk=merge(ddply(ts,.(.id), with, data.frame(ICES=min(year))),
           ddply(ctc1903,.(.id), with, data.frame(Hist=min(year)),by="year"),by=".id")
-ids=subset(chk,Hist<ICES)$.id
+ids=subset(chk,Hist<=ICES)$.id
 
 ctc=subset(ctc,.id%in%ids)
 
@@ -40,7 +40,7 @@ priors=ldply(icesdata, function(x)
   tryIt(c(eqsim(x)[c("bmsy","b0"),drop=TRUE],"fmsy"=benchmark(x)["fmsy"])))
 priors=ddply(priors, .(.id), with, 
   tryIt(FLRebuild::pellatParams(FLPar(msy=bmsy*(1-exp(-fmsy)),bmsy=bmsy,k=b0))[drop=TRUE]))
-priors=merge(priors,ldply(icesdata, function(x) data.frame("psi"=median(ssb(x)[,1:1,drop=TRUE]))))
+priors=merge(priors,ldply(icesdata, function(x) data.frame("psi"=median(ssb(x)[,1:2,drop=TRUE]))))
 priors=transform(priors,psi=psi/k,shape=bmsy/k)
 priorICES=priors[,c(".id","r","p","k","msy","bmsy","fmsy","virgin","psi","shape")]
 
