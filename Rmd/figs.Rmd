@@ -77,7 +77,7 @@ flstk=merge(ts,eqsim(icesdata))
 ```
 
 ```{r}
-load("C:/active/flrpapers/hist/jabba-hist/data/fits/priorICES.RData")
+load("C:/active/flrpapers/hist/hist-jabba/data/fits/priorICES.RData")
 ```
 
 
@@ -124,7 +124,7 @@ p1=ggplot(ddply(ctc,.(.id), transform, catch=stdz(data)))+
     plot.margin  = margin(0, 0, 0, 0))
 p1
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig1.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig1.png", 
        plot    =p1, 
        width   =15, 
        height  =12, 
@@ -135,7 +135,7 @@ ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig1.png",
 **Figure 1.** Reconstructed time series of ICES historical catches by stock. The blue line represents catches used in the official stock assessment while the magenta line is the historical catches as derived from the ICES historical catch database. Catches are standardised to have a mean of 0 and a standard deviation of 1 and the y-axis labels are removed for an easier presentation of the database. 
 
 ```{r, trj-fig5b}
-load("C:/active/flrpapers/hist/jabba-hist/data/fits/trj.RData")
+load("C:/active/flrpapers/hist/hist-jabba/data/fits/trj.RData")
 flstk=subset(flstk,.id%in%trjcMed$.id) 
 
 p5a=ggplot(subset(trjcMed,Scenario=="ICES"))+
@@ -156,7 +156,7 @@ p5a=ggplot(subset(trjcMed,Scenario=="ICES"))+
     plot.margin  = margin(0, 0, 0, 0))
 p5a
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5a.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig5a.png", 
        plot    =p5a, 
        width   =15, 
        height  =12, 
@@ -180,7 +180,7 @@ p5b=ggplot(trjcMed)+
     plot.margin  = margin(0, 0, 0, 0))
 p5b
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5b.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig5b.png", 
        plot    =p5b, 
        width   =15, 
        height  =12, 
@@ -216,7 +216,7 @@ p2=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903",    "ICES"),
   theme_enhanced 
 p2
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig2.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig2.png", 
        plot    =p2, 
        width   =10, 
        height  =12, 
@@ -242,7 +242,7 @@ p3=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903",   "ICES"),
   theme_enhanced 
 p3
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig3.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig3.png", 
        plot    =p3, 
        width   =10, 
        height  =12, 
@@ -268,7 +268,7 @@ p4=ggplot(transform(post,Scenario=factor(Scenario,levels=c("1903","ICES"),
   theme_enhanced 
 p4
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig4.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig4.png", 
        plot    =p4, 
        width   =10, 
        height  =12, 
@@ -278,7 +278,7 @@ ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig4.png",
 **Figure 4.** Density plot of the posteriors of the ratio between $B_{current}$ and $B_{MSY}$ estimated for each stock with “ICES catches JABBA” and “Historical catches JABBA” models. The black vertical line indicates BMSY for each stock.
 
 ```{r, fig5,  fig.height=12, fig.width=10}
-load("C:/active/flrpapers/hist/jabba-hist/data/fits/trj.RData")
+load("C:/active/flrpapers/hist/hist-jabba/data/fits/trj.RData")
 
 p5=ggplot(trjc)+
   geom_line(aes(year, stock, color = Scenario), 
@@ -302,7 +302,7 @@ p5=ggplot(trjc)+
 p5
 
 # Save with appropriate dimensions
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig5.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig5.png", 
        plot    =p5, 
        width   =15, 
        height  =12, 
@@ -335,7 +335,7 @@ p6a=ggplot(transform(post, Scenario=factor(Scenario,levels=c("1903",   "ICES"),
   theme_enhanced 
 p6a
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6a.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig6a.png", 
        plot    =p6a, 
        width   =10, 
        height  =12, 
@@ -369,7 +369,7 @@ p6b=ggplot(transform(post, Scenario=factor(Scenario,levels=c("1903",   "ICES"),
   theme_enhanced 
 p6b
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6b.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig6b.png", 
        plot    =p6b, 
        width   =10, 
        height  =12, 
@@ -383,7 +383,7 @@ ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6b.png",
 p6=(p6a+facet_null()) / 
    (p6b+facet_null())
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig6.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig6.png", 
        plot    =p6, 
        width   =10, 
        height  =12, 
@@ -464,7 +464,7 @@ p7+theme(
      legend.text=element_text(size=8),
      panel.grid.minor=element_blank())
 
-ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig7.png", 
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig7.png", 
        plot    =p7, 
        width   =10, 
        height  =12, 
@@ -473,6 +473,19 @@ ggsave(filename="C:/active/flrpapers/hist/jabba-hist/figs/fig7.png",
 ```
 
 **Figure 7.** Density of the aggregated posterior distribution for the population growth parameter (r), shape (i.e., BMSY/SSB0), the spawning biomass estimated at the start of the ICES times series (Binitial) and the spawning biomass estimated at the end of the ICES times series (Bcurrent; in log scale), the stock carrying capacity (SSB0; in log scale) for both scenarios, “ICES catches JABBA” and the “Historical catches JABBA” models.
+
+
+```{r}
+load("data/fits/msy.RData")
+
+ggplot(bbmsy)+
+  geom_ribbon(aes(year,ymin=lci,ymax=uci,fill=Scenario),alpha=0.3)+
+  geom_path(aes(year,mu,col=Scenario))+
+  facet_wrap(~stock)+
+  theme_enhanced
+
+
+```
 
 ```{r, eval=FALSE}
 library(JABBA)

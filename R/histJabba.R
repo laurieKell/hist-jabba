@@ -132,13 +132,15 @@ histICES=runParallel(ids, priorICES, icesdata, ctc1903, quick=FALSE)
 
 stopImplicitCluster()
 
+save(histICES,file="data/results/histICES.RData")
+
 jbplot_summary(llply(histICES[ids[34]], function(x) x[["1903"]]$fit))
 
 x=histICES[[6]]
 jbplot_summary(list("1903"=x[["1903"]]$fit,
                     "ICES"=x[["ICES"]]$fit))
 
-jbICES=jabbaExtractLists(histICES)
+jbICES=FLRebuild:::jabbaExtractLists(histICES)
 ## Priors used for initial depletion, r, ...
 prior =jbICES[["priors"]]
 ## Posteriors, estimates of main parameters and derived quantities
@@ -173,22 +175,20 @@ post =ddply(post,  .(.id,Scenario),      fn)
 kb   =ddply(kb,    .(.id,Scenario),      fn)
 psi  =ddply(psi,   .(.id,Scenario),      fn)
 
-save(priorICES,   file="../data/fits/priorICES.RData")
-save(prior,       file="../data/fits/prior.RData")
-save(trjc,trjcMed,file="../data/fits/trj.RData")
-save(post,postMed,file="../data/fits/post.RData")
-save(kb,  kbMed,  file="../data/fits/kb.RData")
-save(psi, psiMed, file="../data/fits/psi.RData")
-
-save(histICES,file="../data/results/histICES.RData")
+save(priorICES,   file="data/fits/priorICES.RData")
+save(prior,       file="data/fits/prior.RData")
+save(trjc,trjcMed,file="data/fits/trj.RData")
+save(post,postMed,file="data/fits/post.RData")
+save(kb,  kbMed,  file="data/fits/kb.RData")
+save(psi, psiMed, file="data/fits/psi.RData")
 
 bbmsy=ldply(histICES, function(x) ldply(x, function(x) 
-  cbind(year=an(dimnames(histICES[[2]][[1]]$fit$timeseries)[[1]]),x[["fit"]]$timeseries[,,"BBmsy"]),
+  cbind(year=an(dimnames(x$fit$timeseries)[[1]]),x[["fit"]]$timeseries[,,"BBmsy"]),
         .id="Scenario"),.id="stock")
 ffmsy=ldply(histICES, function(x) ldply(x, function(x) 
-  cbind(year=an(dimnames(histICES[[2]][[1]]$fit$timeseries)[[1]]),x[["fit"]]$timeseries[,,"FFmsy"]),
+  cbind(year=an(dimnames(x$fit$timeseries)[[1]]),x[["fit"]]$timeseries[,,"FFmsy"]),
   .id="Scenario"),.id="stock")
-
+save(bbmsy,ffmsy, file="data/fits/msy.RData")
 
 
 
