@@ -23,7 +23,6 @@ data("icesdata")
 data("ctc1903")
 
 ts   =tseries(icesdata)
-excld=c("aru.27.5b6a","bss.27.4bc7ad-h","meg.27.7b-k8abd","mon.27.8c9a","ple.27.21-23","spr.27.3a4")
 
 ctc=rbind(cbind(What="ICES",transmute(ts,     .id=.id,year=year,data=catch)),
           cbind(What="1903",transmute(ctc1903,.id=.id,year=year,data=catch)))

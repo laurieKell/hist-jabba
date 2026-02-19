@@ -45,6 +45,11 @@ iFig <- 0
 iTab <- 0
 ```
 
+```{r}
+excl =c("aru.27.5b6a", "bss.27.4bc7ad-h", "cod.2127.1f14", 
+        "meg.27.7b-k8abd", "mon.27.8c9a", "ple.27.21-23", "spr.27.3a4")
+```
+
 ```{r, eval=FALSE}
 source("C:/active/flr/icesdata/R/generic.R")
 source("C:/active/flr/FLRebuild/R/jabba-wrapper.R")
