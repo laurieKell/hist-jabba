@@ -43,6 +43,35 @@ priors=merge(priors,ldply(icesdata, function(x) data.frame("psi"=median(ssb(x)[,
 priors=transform(priors,psi=psi/k,shape=bmsy/k)
 priorICES=priors[,c(".id","r","p","k","msy","bmsy","fmsy","virgin","psi","shape")]
 
+
+pt<-function(r,p,k,b=k*seq(0,1,length.out=101)) 
+  data.frame(biomass=b,
+             production=(r / p) * b * (1 - (b / k)^p))
+
+ggplot(pt(0.16,1.38,100000))+
+  geom_path(aes(biomass,production))
+
+dat=ddply(priorICES,.(.id), with, pt(r,p,k))
+ggplot(dat)+
+  geom_path(aes(biomass,production))+
+  facet_wrap(~.id,scale="free")+
+  theme_minimal(base_size=12)+
+  theme(
+    legend.position="bottom",
+    legend.title=element_text(face="bold"),
+    panel.grid.major.x=element_line(color="gray90", linewidth=0.2),
+    panel.grid.minor=element_blank(),
+    strip.text=element_text(face="bold", size=10, color="gray30"),
+    plot.title=element_text(face="bold", size=14, margin=margin(b=10)),
+    plot.subtitle=element_text(size=10, color="gray40", margin=margin(b=15)),
+    axis.title.x=element_text(size=12, margin=margin(t=10)),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    panel.spacing=unit(0, "lines"),
+    plot.margin=margin(0,0,0,0))
+
 dat=transform(priorICES,.id=factor(.id,levels=unlist(priorICES[order(priorICES$psi),".id"])))
 ggplot(dat)+
   geom_point(aes(.id,psi))+
