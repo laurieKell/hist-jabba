@@ -63,11 +63,11 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
   # Initialize prior SDs with documented values
   # Default 30% CV for all parameters
   pr.sd             =0.3*pr/pr  
-  pr.sd["psi"]      =0.01
-  pr.sd["r"]        =0.05    
-  pr.sd["shape"]    =0.3   
+  pr.sd["psi"]      =0.5
+  pr.sd["r"]        =0.5    
+  pr.sd["shape"]    =0.5   
   pr.sd["k"]        =5.0 
-
+  
   # Process with reporting
   message(paste("Processing stock:", id))
   
@@ -89,19 +89,27 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
   eb1903[is.na(eb1903)]=NA
   
   rtn=list()
-
+  
   message(paste(id,": ICES"))                
   rtn[["ICES"]] =try(FLRebuild:::jabba(catch,pr,pr.sd=pr.sd,index=eb,assessment=id,
-                                       q_bounds=c(0.5,2),quick=quick))
+                                       q_bounds   =c(0.5,2),quick=quick,
+                                       sigma.est  =FALSE,
+                                       fixed.obsE =0.15, 
+                                       sigma.proc =TRUE,
+                                       fixed.procE=0.3,
+                                       igamma     =c(0.001,0.001)))
   
   pr[   "psi"]=0.9
   pr.sd["psi"]=0.5
   
   message(paste(id,": 1903"))                
-  rtn[["1903"]] =try(FLRebuild:::jabba(c1903,pr,pr.sd=pr.sd,index=eb1903,assessment=id,
-                                       q_bounds=c(0.5,2),quick=quick))
-  return(rtn)
-  
+  rtn[["1903"]] =try(jabba(c1903,pr,pr.sd=pr.sd,index=eb1903,assessment=id,
+                                       q_bounds=c(0.5,2),quick=quick,
+                                       sigma.est  =FALSE,
+                                       fixed.obsE =0.15, 
+                                       sigma.proc =TRUE,
+                                       fixed.procE=0.3,
+                                       igamma     =c(0.001,0.001)))
   return(rtn)}
 
 runParallel<-function(ids, priors, icesdata, ctc1903, quick=TRUE) {

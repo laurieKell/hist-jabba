@@ -285,7 +285,7 @@ ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig4.png",
 ```{r, fig5,  fig.height=12, fig.width=10}
 load("C:/active/flrpapers/hist/hist-jabba/data/fits/trj.RData")
 
-p5=ggplot(trjc)+
+p5=ggplot(trjcMed)+
   geom_line(aes(year, stock, color = Scenario), 
             linewidth = 0.8, alpha = 0.8) +
   geom_hline(aes(yintercept=1),linetype="dotted")+
