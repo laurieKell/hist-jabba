@@ -481,7 +481,7 @@ ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/fig7.png",
 
 
 ```{r}
-load("data/fits/msy.RData")
+load("C:/active/flrpapers/hist/hist-jabba/data/fits/msy.RData")
 
 ggplot(bbmsy)+
   geom_ribbon(aes(year,ymin=lci,ymax=uci,fill=Scenario),alpha=0.3)+
@@ -508,4 +508,31 @@ save(dg1903,dgICES,file="C:\\active\\flrpapers\\hist\\hist-jabba\\data\\results\
 
 apply(dgICES[,c(1,3,8,10,12,14)],2,mean,na.rm=TRUE)
 apply(dg1903[,c(1,3,8,10,12,14)],2,mean,na.rm=TRUE)
+```
+
+```{r}
+colnames(bbmsy)[1]<-'.id'
+bbmsy=bbmsy[bbmsy$Scenario!="1903",]
+ts=tseries(icesdata)
+ices=merge(ts,eqsim(icesdata))
+datafigure = merge(ices,bbmsy, by=c(".id","year"))
+datafigure$BBMSY = datafigure$ssb/datafigure$bmsy
+
+excl =c("aru.27.5b6a", "bss.27.4bc7ad-h", "cod.2127.1f14", "meg.27.7b-k8abd", "mon.27.8c9a", "ple.27.21-23", "spr.27.3a4")
+datafigure <- subset(datafigure, !(.id %in% excl))
+
+S6=ggplot(datafigure)+
+geom_line(aes(year,BBMSY),col="blue",linetype=1)+
+geom_ribbon(aes(year,ymin=lci,ymax=uci),alpha=0.3)+
+  geom_line(aes(year,mu))+
+  labs(y = expression(SSB/SSB[MSY]))+xlab("Year")+
+  facet_wrap(~.id,scale="free_y",ncol=5)+
+  theme_enhanced
+S6
+
+ggsave(filename="C:/active/flrpapers/hist/hist-jabba/figs/s6.png", 
+       plot    =S6, 
+       width   =15, 
+       height  =12, 
+       dpi     =300)
 ```

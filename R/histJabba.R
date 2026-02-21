@@ -95,7 +95,7 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
   pr.sd["psi"]      =0.5
   pr.sd["r"]        =0.5    
   pr.sd["shape"]    =0.5   
-  pr.sd["k"]        =5.0 
+  pr.sd["k"]        =0.5 
   
   # Process with reporting
   message(paste("Processing stock:", id))
@@ -123,7 +123,7 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
   rtn[["ICES"]] =try(FLRebuild:::jabba(catch,pr,pr.sd=pr.sd,index=eb,assessment=id,
                                        q_bounds   =c(0.5,2),quick=quick,
                                        sigma.est  =FALSE,
-                                       fixed.obsE =0.15, 
+                                       fixed.obsE =0.05, 
                                        sigma.proc =TRUE,
                                        fixed.procE=0.3,
                                        igamma     =c(0.001,0.001)))
@@ -135,7 +135,7 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
   rtn[["1903"]] =try(jabba(c1903,pr,pr.sd=pr.sd,index=eb1903,assessment=id,
                                        q_bounds=c(0.5,2),quick=quick,
                                        sigma.est  =FALSE,
-                                       fixed.obsE =0.15, 
+                                       fixed.obsE =0.05, 
                                        sigma.proc =TRUE,
                                        fixed.procE=0.3,
                                        igamma     =c(0.001,0.001)))
@@ -143,7 +143,7 @@ runHist<-function(id, prior, icesdata=icesdata, ctc1903=ctc1903, quick=TRUE) {
 
 runParallel<-function(ids, priors, icesdata, ctc1903, quick=TRUE) {
   message(paste("Starting"))
-  
+   
   rtn=foreach(id=ids, 
               .combine=list, 
               .maxcombine=length(ids), 
@@ -177,6 +177,7 @@ jbplot_summary(list("1903"=x[["1903"]]$fit,
                     "ICES"=x[["ICES"]]$fit))
 
 jbICES=FLRebuild:::jabbaExtractLists(histICES)
+
 ## Priors used for initial depletion, r, ...
 prior =jbICES[["priors"]]
 ## Posteriors, estimates of main parameters and derived quantities
